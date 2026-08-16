@@ -1,21 +1,21 @@
-name: DAIOE Pull → Development
+name: Geo Pull → Development
 
 on:
   push:
     branches:
-      - daioe_pull
+      - geo_pull
   workflow_dispatch:
     inputs:
       source_branch:
         description: "Source branch to run scripts from"
         required: false
-        default: "daioe_pull"
+        default: "geo_pull"
       target_branch:
         description: "Target branch to push data into"
         required: false
         default: "development"
   schedule:
-    - cron: "0 0 * * *"  # daily at 00:00 UTC
+    - cron: "15 0 * * *"  # daily at 00:15 UTC (offset from the scb/daioe pulls)
 
 concurrency:
   group: data-sync-${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +35,7 @@ jobs:
   build-data:
     runs-on: ubuntu-latest
     env:
-      SOURCE_BRANCH: ${{ github.event.inputs.source_branch || vars.SOURCE_BRANCH || 'daioe_pull' }}
+      SOURCE_BRANCH: ${{ github.event.inputs.source_branch || vars.SOURCE_BRANCH || 'geo_pull' }}
 
     steps:
       - name: Checkout source
@@ -66,8 +66,8 @@ jobs:
       - name: Upload data artifact
         uses: actions/upload-artifact@v4
         with:
-          name: daioe_scb_merge_output
-          path: data/daioe_scb_years_all_levels.parquet
+          name: county_coordinates_output
+          path: data/county_coordinates.parquet
 
 
 # ============ Sync ============ #
@@ -75,7 +75,7 @@ jobs:
   sync-target:
     runs-on: ubuntu-latest
     needs: build-data
-    # Shared with 03_geo_pull_to_development.yml's sync-target job: both
+    # Shared with 02_daioe_pull_to_development.yml's sync-target job: both
     # workflows write to the same `development` branch independently, so
     # this queues them instead of racing two concurrent pushes.
     concurrency:
@@ -94,13 +94,13 @@ jobs:
       - name: Download data artifact
         uses: actions/download-artifact@v4
         with:
-          name: daioe_scb_merge_output
+          name: county_coordinates_output
           path: data/
 
       - name: Validate artifact
         run: |
           set -euo pipefail
-          if [ ! -f "data/daioe_scb_years_all_levels.parquet" ]; then
+          if [ ! -f "data/county_coordinates.parquet" ]; then
             echo "ERROR: Missing expected parquet file in artifact."
             exit 1
           fi
@@ -129,10 +129,10 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/daioe_scb_years_all_levels.parquet data/daioe_scb_years_all_levels_geo.parquet
+          git add data/county_coordinates.parquet data/daioe_scb_years_all_levels_geo.parquet
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore: update daioe_scb_years_all_levels.parquet [skip ci]"
+          git commit -m "chore: update county_coordinates.parquet [skip ci]"
           git push origin "${TARGET_BRANCH}"
