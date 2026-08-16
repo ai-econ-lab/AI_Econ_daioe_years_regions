@@ -8,7 +8,7 @@ from shiny import reactive
 from shiny.express import input, render, ui
 
 APP_DIR = Path(__file__).resolve().parent
-DATA_PATH = APP_DIR / "data" / "daioe_scb_years_all_levels.parquet"
+DATA_PATH = APP_DIR / "data" / "daioe_scb_years_all_levels_geo.parquet"
 
 DATA = pl.read_parquet(DATA_PATH)
 YEARS = sorted(DATA.get_column("year").unique().to_list())
