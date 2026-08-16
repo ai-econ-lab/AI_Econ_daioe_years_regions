@@ -111,4 +111,16 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update ssyk12 aggregated data [skip ci]"
-          git push origin "${TARGET_BRANCH}"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin "${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${TARGET_BRANCH} and retrying..."
+            git fetch origin "${TARGET_BRANCH}"
+            git rebase "origin/${TARGET_BRANCH}"
+            sleep $((attempt * 5))
+          done
+
+          echo "ERROR: failed to push to ${TARGET_BRANCH} after 5 attempts."
+          exit 1
