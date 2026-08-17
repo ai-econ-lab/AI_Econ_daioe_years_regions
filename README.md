@@ -2,19 +2,20 @@
 
 AI occupational exposure (DAIOE) merged with Swedish employment data (SCB),
 broken down by SSYK2012 occupation, county, sex and year — with county
-coordinates attached for mapping. This repository's `main` branch hosts the
-deployable Shiny app; the underlying data pipeline lives across four
-upstream branches described below.
+coordinates attached for mapping. This branch (`development`) is where the
+data pipeline and the app are actively developed; the underlying data
+pipeline lives across four upstream branches described below.
 
 ## About the app on this branch
 
-`app.py` on `main` is currently a **geodata sanity check**, not the
-analytical app: it plots one marker per Swedish county, coloured and sized
-by that county's latest-year employment-weighted AI exposure, purely to
-confirm that `county_lat`/`county_lon` joined onto the dataset correctly.
-More substantive app features (occupation drill-down, time series, exposure
+`app.py` here is currently a **geodata sanity check**, not the analytical
+app: it plots one marker per Swedish county, coloured and sized by that
+county's latest-year employment-weighted AI exposure, purely to confirm
+that `county_lat`/`county_lon` joined onto the dataset correctly. More
+substantive app features (occupation drill-down, time series, exposure
 comparisons, etc.) are expected to follow; treat the current map as a data
-QA tool rather than the final product.
+QA tool rather than the final product. The app files here are **not**
+promoted to `main` while the app is under active development — see below.
 
 ## Pipeline architecture
 
@@ -33,16 +34,18 @@ geo_pull   ----------03------------->
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `data/daioe_scb_years_all_levels.parquet` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `data/county_coordinates.parquet` |
 | `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
-| `main` | Deployable app snapshot | — | `app.py`, `_brand.yml`, data, and this README, promoted verbatim from `development` |
+| `main` | Published dataset only | — | `data/daioe_scb_years_all_levels_geo.parquet`, auto-promoted from `development` |
 
 Workflows run daily and in sequence (`01` at 00:00 UTC, `03` at 00:15 UTC,
 `04` at 00:30 UTC — `02` fires on push from `daioe_pull` rather than its own
-schedule), so `main` reflects `development` roughly 30 minutes after the
-upstream pulls land. **Because workflow `04_development_to_main.yml`
-overwrites `main`'s `README.md`, `app.py`, `_brand.yml` and data file from
-`development` on every run, `development` is this project's source of
-truth for those files — edits made only on `main` will be reverted by the
-next scheduled sync.**
+schedule), so `main` reflects `development`'s dataset roughly 30 minutes
+after the upstream pulls land. **Workflow `04_development_to_main.yml`
+promotes only the dataset parquet to `main` — not `README.md`, `app.py`,
+`_brand.yml`, or the dependency files.** Those stay on `development` while
+the app is under active development; `main`'s README is maintained
+independently and describes the dataset only. This is a deliberate,
+temporary split: once the app is ready, `main` will start receiving app
+files again.
 
 ## Data sources
 
