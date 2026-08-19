@@ -1,8 +1,8 @@
-# AI-SCB Year and Regions — `daioe_pull` branch
+# AI-SCB Year and Regions: `daioe_pull` branch
 
 Second stage of the data pipeline: merges AI occupational exposure scores
 (DAIOE) with the SCB employment data aggregated on `scb_pull`, across
-SSYK2012 levels, county, sex, and year. For the full four-branch pipeline
+SSYK2012 levels, county, sex and year. For the full four-branch pipeline
 and the final merged dataset, see the `development` branch's README.
 
 ## What this branch does
@@ -10,7 +10,7 @@ and the final merged dataset, see the `development` branch's README.
 `main.py` performs the merge:
 
 1. Loads DAIOE scores from
-   [`joseph-data/07_translate_ssyk`](https://github.com/joseph-data/07_translate_ssyk)
+   [`ai-econ-lab/daioe_translations`](https://github.com/ai-econ-lab/daioe_translations)
    (`daioe_ssyk2012_translated.csv`) and this branch's own
    `data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet` (committed here
    by `scb_pull`'s workflow) lazily.
@@ -20,10 +20,10 @@ and the final merged dataset, see the `development` branch's README.
    publication).
 4. Extends the DAIOE series forward to match SCB's latest year by repeating
    the last known year's occupation-level scores unchanged (frozen, not
-   forecast) — DAIOE's own coverage lags SCB's.
+   forecast); DAIOE's own coverage lags SCB's.
 5. Joins DAIOE to SCB SSYK4 employment counts, used as aggregation weights.
 6. Aggregates DAIOE metrics (11 AI-application domains, e.g. `imgrec`,
-   `translat`, `genai` — see `development`'s README for the full list) to
+   `translat`, `genai`; see `development`'s README for the full list) to
    all four SSYK2012 levels, each with a simple mean and an
    employment-weighted mean, plus within-year percentile ranks.
 7. Converts weighted percentile ranks into 1–5 exposure-level buckets
