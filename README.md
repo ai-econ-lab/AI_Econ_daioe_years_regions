@@ -1,7 +1,7 @@
 # AI-SCB Year and Regions
 
 AI occupational exposure (DAIOE) merged with Swedish employment data (SCB),
-broken down by SSYK2012 occupation, county, sex and year — with county
+broken down by SSYK2012 occupation, county, sex and year, with county
 coordinates attached for mapping. This branch (`development`) is where the
 data pipeline and the app are actively developed; the underlying data
 pipeline lives across four upstream branches described below.
@@ -15,7 +15,7 @@ that `county_lat`/`county_lon` joined onto the dataset correctly. More
 substantive app features (occupation drill-down, time series, exposure
 comparisons, etc.) are expected to follow; treat the current map as a data
 QA tool rather than the final product. The app files here are **not**
-promoted to `main` while the app is under active development — see below.
+promoted to `main` while the app is under active development; see below.
 
 ## Pipeline architecture
 
@@ -34,13 +34,13 @@ geo_pull   ----------03------------->
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `data/daioe_scb_years_all_levels.parquet` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `data/county_coordinates.parquet` |
 | `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
-| `main` | Published dataset only | — | `data/daioe_scb_years_all_levels_geo.parquet`, auto-promoted from `development` |
+| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, auto-promoted from `development` |
 
 Workflows run daily and in sequence (`01` at 00:00 UTC, `03` at 00:15 UTC,
-`04` at 00:30 UTC — `02` fires on push from `daioe_pull` rather than its own
+`04` at 00:30 UTC; `02` fires on push from `daioe_pull` rather than its own
 schedule), so `main` reflects `development`'s dataset roughly 30 minutes
 after the upstream pulls land. **Workflow `04_development_to_main.yml`
-promotes only the dataset parquet to `main` — not `README.md`, `app.py`,
+promotes only the dataset parquet to `main`, not `README.md`, `app.py`,
 `_brand.yml`, or the dependency files.** Those stay on `development` while
 the app is under active development; `main`'s README is maintained
 independently and describes the dataset only. This is a deliberate,
@@ -49,7 +49,7 @@ files again.
 
 ## Data sources
 
-### Employment counts — Statistics Sweden (SCB)
+### Employment counts: Statistics Sweden (SCB)
 
 Pulled from SCB's statistics database (table group `AM0208`, occupational
 statistics) via the `pyscbwrapper` API client in `scb_pull/scripts/pull_merge.py`.
@@ -68,10 +68,10 @@ for a 4-digit SSYK2012 occupation, county, sex (men/women) and year;
 national totals and unspecified-occupation rows are dropped. County-level
 (not municipality) regions only.
 
-### AI exposure scores — DAIOE
+### AI exposure scores: DAIOE
 
 Sourced from
-[`joseph-data/07_translate_ssyk`](https://github.com/joseph-data/07_translate_ssyk)
+[`ai-econ-lab/daioe_translations`](https://github.com/ai-econ-lab/daioe_translations)
 (`03_translated_files/daioe_ssyk2012_translated.csv`), which translates
 occupational AI-exposure scores onto SSYK2012 4-digit codes. Scores are
 provided per year and per AI application/benchmark domain (columns prefixed
@@ -92,14 +92,14 @@ their most recent value, not forecast).
 
 Compiled manually in `geo_pull/county_coordinates.csv`: one point per
 Swedish county (SCB län code `01`–`25`, 21 counties) at that county's
-administrative-capital city centre — **not** a computed area centroid.
+administrative-capital city centre, **not** a computed area centroid.
 County/capital mappings come from
-[SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics-and-maps/regional-divisions/counties-and-municipalities/),
+[SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics/regional-divisions/counties-and-municipalities/),
 cross-checked against Wikipedia's "Counties of Sweden"; coordinates were
 compiled from commonly published city-centre coordinates (e.g. Wikipedia,
 [geodatos.net](https://www.geodatos.net/en/coordinates/sweden)), spot-checked
 August 2026. This is intentionally approximate and suitable for map
-markers, not survey-grade geodata — see `geo_pull/README.md` for the full
+markers, not survey-grade geodata; see `geo_pull/README.md` for the full
 provenance note and a pointer to Lantmäteriet if precise centroids are ever
 needed.
 
@@ -123,18 +123,18 @@ needed.
 
 `development/scripts/merge_geo.py` then left-joins `county_lat`/`county_lon`
 from `county_coordinates.parquet` onto the result, producing
-`data/daioe_scb_years_all_levels_geo.parquet` — the file the Shiny app reads.
+`data/daioe_scb_years_all_levels_geo.parquet`, the file the Shiny app reads.
 
 ## Final dataset schema
 
-`data/daioe_scb_years_all_levels_geo.parquet` — 292,446 rows × 72 columns,
+`data/daioe_scb_years_all_levels_geo.parquet`: 292,446 rows × 72 columns,
 years 2014–2024, 21 counties, sex = men/women, `level` ∈
 {SSYK1, SSYK2, SSYK3, SSYK4}.
 
 | Column group | Columns | Notes |
 |---|---|---|
 | Identifiers | `level`, `ssyk_code`, `occupation`, `county_code`, `county`, `sex`, `year` | `ssyk_code` length matches `level` (1–4 digits) |
-| Employment | `emp_count`, `chg_1y`/`chg_3y`/`chg_5y`, `pct_chg_1y`/`pct_chg_3y`/`pct_chg_5y`, `weight_sum` | `weight_sum` is a national SSYK4 total, repeated per SSYK code — not county-specific |
+| Employment | `emp_count`, `chg_1y`/`chg_3y`/`chg_5y`, `pct_chg_1y`/`pct_chg_3y`/`pct_chg_5y`, `weight_sum` | `weight_sum` is a national SSYK4 total, repeated per SSYK code, not county-specific |
 | DAIOE (per domain, 11 domains) | `daioe_<domain>_avg`, `daioe_<domain>_wavg` | Simple mean vs. employment-weighted mean across the level's constituent SSYK4 codes |
 | DAIOE percentiles | `pctl_daioe_<domain>_avg`, `pctl_daioe_<domain>_wavg` | 0–100, within `year` × `level` |
 | DAIOE exposure buckets | `daioe_<domain>_Level_Exposure` | 1 (least exposed) – 5 (most exposed), quintiles of the weighted percentile |
