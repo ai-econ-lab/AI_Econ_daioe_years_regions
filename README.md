@@ -1,4 +1,4 @@
-# AI-SCB Year and Regions — `scb_pull` branch
+# AI-SCB Year and Regions: `scb_pull` branch
 
 First stage of the data pipeline: pulls raw employment statistics from
 Statistics Sweden (SCB) and aggregates them across SSYK2012 occupation
@@ -7,9 +7,9 @@ see the `development` branch's README.
 
 ## What this branch does
 
-1. `scripts/pull_merge.py` — fetches employment counts from SCB's
+1. `scripts/pull_merge.py`: fetches employment counts from SCB's
    statistics API (table group `AM0208`) via `pyscbwrapper`, for county-level
-   regions, sex (men/women), 4-digit SSYK2012 occupations, and year. Three
+   regions, sex (men/women), 4-digit SSYK2012 occupations and year. Three
    table-ID vintages are queried concurrently and combined, since SCB
    changed the table ID over time:
 
@@ -23,7 +23,7 @@ see the `development` branch's README.
    (dedup on `code_4` × `county_code` × `sex` × `year`). National totals and
    unspecified-occupation rows are dropped. Output: `data/scb_yr_regions.parquet`.
 
-2. `scripts/aggregate.py` — reads that parquet, derives SSYK2012 levels 1–3
+2. `scripts/aggregate.py`: reads that parquet, derives SSYK2012 levels 1–3
    by slicing the 4-digit code, aggregates employment (`value`) to each
    level (SSYK1–SSYK4) by county/sex/year, and left-joins occupation names
    from `structure_ssyk12.csv`. Output:
