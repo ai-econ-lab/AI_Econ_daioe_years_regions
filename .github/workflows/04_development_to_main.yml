@@ -28,7 +28,12 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 
-# ============ Promote deployable app files ============ #
+# ============ Promote dataset ============ #
+# App files (app.py, _brand.yml, pyproject.toml, uv.lock, .python-version)
+# are intentionally NOT promoted while the app is under active development
+# on `development`. README.md is also excluded: `main`'s README is
+# maintained independently (data-only) while `development`'s documents the
+# full pipeline and in-progress app. Only the dataset parquet is synced.
 
 jobs:
   sync-deploy-files:
@@ -50,13 +55,7 @@ jobs:
           set -euo pipefail
           cd source
           required_files=(
-            "app.py"
-            "_brand.yml"
             "data/daioe_scb_years_all_levels_geo.parquet"
-            "pyproject.toml"
-            "uv.lock"
-            ".python-version"
-            "README.md"
           )
 
           for file in "${required_files[@]}"; do
@@ -71,13 +70,7 @@ jobs:
           set -euo pipefail
           cd source
           files=(
-            "app.py"
-            "_brand.yml"
             "data/daioe_scb_years_all_levels_geo.parquet"
-            "pyproject.toml"
-            "uv.lock"
-            ".python-version"
-            "README.md"
           )
 
           tar -czf ../deploy-files.tgz "${files[@]}"
@@ -101,19 +94,13 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -- \
-            app.py \
-            _brand.yml \
-            data/daioe_scb_years_all_levels_geo.parquet \
-            pyproject.toml \
-            uv.lock \
-            .python-version \
-            README.md
+            data/daioe_scb_years_all_levels_geo.parquet
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore: promote deployable app files [skip ci]"
+          git commit -m "chore: promote dataset [skip ci]"
 
           for attempt in 1 2 3 4 5; do
             if git push origin "${TARGET_BRANCH}"; then
