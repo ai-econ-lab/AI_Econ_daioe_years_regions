@@ -71,7 +71,7 @@ national totals and unspecified-occupation rows are dropped. County-level
 ### AI exposure scores — DAIOE
 
 Sourced from
-[`joseph-data/07_translate_ssyk`](https://github.com/joseph-data/07_translate_ssyk)
+[`ai-econ-lab/daioe_translations`](https://github.com/ai-econ-lab/daioe_translations)
 (`03_translated_files/daioe_ssyk2012_translated.csv`), which translates
 occupational AI-exposure scores onto SSYK2012 4-digit codes. Scores are
 provided per year and per AI application/benchmark domain (columns prefixed
@@ -94,7 +94,7 @@ Compiled manually in `geo_pull/county_coordinates.csv`: one point per
 Swedish county (SCB län code `01`–`25`, 21 counties) at that county's
 administrative-capital city centre — **not** a computed area centroid.
 County/capital mappings come from
-[SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics-and-maps/regional-divisions/counties-and-municipalities/),
+[SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics/regional-divisions/counties-and-municipalities/),
 cross-checked against Wikipedia's "Counties of Sweden"; coordinates were
 compiled from commonly published city-centre coordinates (e.g. Wikipedia,
 [geodatos.net](https://www.geodatos.net/en/coordinates/sweden)), spot-checked
