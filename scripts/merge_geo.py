@@ -26,20 +26,25 @@ DAIOE_PATH = DATA_DIR / "daioe_scb_years_all_levels.parquet"
 COORDS_PATH = DATA_DIR / "county_coordinates.parquet"
 OUTPUT_PATH = DATA_DIR / "daioe_scb_years_all_levels_geo.parquet"
 
+# Canonical row order so identical data always serialises to identical
+# bytes; without this, unstable ordering upstream reshuffled every write and
+# made every run look like a data change to git.
+SORT_KEY = ["year", "county_code", "level", "ssyk_code", "sex"]
+
 
 def main() -> None:
     daioe = pl.scan_parquet(DAIOE_PATH)
 
     if not COORDS_PATH.exists():
         print(f"WARNING: {COORDS_PATH} not found; passing daioe data through unmerged.")
-        daioe.sink_parquet(OUTPUT_PATH)
+        daioe.sort(SORT_KEY).sink_parquet(OUTPUT_PATH)
         return
 
     coords = pl.scan_parquet(COORDS_PATH).select(
         ["county_code", "county_lat", "county_lon"],
     )
     merged = daioe.join(coords, on="county_code", how="left")
-    merged.sink_parquet(OUTPUT_PATH)
+    merged.sort(SORT_KEY).sink_parquet(OUTPUT_PATH)
     print(f"Exported merged dataset to {OUTPUT_PATH}")
 
 
