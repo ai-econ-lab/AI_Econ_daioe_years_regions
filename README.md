@@ -30,16 +30,37 @@ geo_pull   ----------03------------->
 
 | Branch | Role | Build script | Output |
 |---|---|---|---|
-| `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet` |
-| `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `data/daioe_scb_years_all_levels.parquet` |
-| `geo_pull` | Maintain county reference coordinates | `main.py` | `data/county_coordinates.parquet` |
-| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
-| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, auto-promoted from `development` |
+| `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `ssyk12_aggregated_ssyk4_to_ssyk1.parquet`, published to the `pipeline-data-latest` release |
+| `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet`, published to `pipeline-data-latest` |
+| `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet`, published to `pipeline-data-latest` |
+| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` (the only generated file still committed here, since `app.py` reads it directly), also published to `pipeline-data-latest` |
+| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the citable `dataset-latest` release |
 
-Workflows run daily and in sequence (`01` at 00:00 UTC, `03` at 00:15 UTC,
-`04` at 00:30 UTC; `02` fires on push from `daioe_pull` rather than its own
-schedule), so `main` reflects `development`'s dataset roughly 30 minutes
-after the upstream pulls land. **Workflow `04_development_to_main.yml`
+None of the four stages commit their output onto a branch's git tree
+any more, other than this branch's one tracked file above; that was
+growing this repo by tens of megabytes per run, twice a day, from rows
+that hadn't actually changed. Every stage publishes to a shared
+`pipeline-data-latest` GitHub release instead, downloading its own
+inputs from there rather than relying on a branch's tree already
+having them. The two intermediates this branch's `merge_geo.py` reads,
+`daioe_scb_years_all_levels.parquet` and `county_coordinates.parquet`,
+are gitignored here for the same reason; for a local run, fetch them
+first:
+
+```bash
+gh release download pipeline-data-latest --repo <owner>/<repo> \
+  -p 'daioe_scb_years_all_levels.parquet' -p 'county_coordinates.parquet' -D data
+```
+
+Workflows chain explicitly: `01` (daily 00:00 UTC) triggers `02` on
+completion; `02` and `03` (daily 00:15 UTC, independent of the
+daioe/scb pull) each trigger `04` on completion. `04` also runs on its
+own daily schedule (00:30 UTC) as a fallback, and on a push to this
+branch. All four workflows live only on `main`, and each keeps a
+synced copy of itself on its own source branch after every run, so
+pushing directly to `scb_pull`/`daioe_pull`/`geo_pull`/`development`
+(e.g. a script fix) still triggers that stage immediately rather than
+waiting for the next scheduled run. **Workflow `04_development_to_main.yml`
 promotes only the dataset parquet to `main`, not `README.md`, `app.py`,
 `_brand.yml`, or the dependency files.** Those stay on `development` while
 the app is under active development; `main`'s README is maintained
