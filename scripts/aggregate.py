@@ -104,6 +104,11 @@ def add_ssyk_levels(df: pl.DataFrame) -> pl.LazyFrame:
 # group-by dimensions shared across all levels
 _GRP_DIMS = ["county_code", "county", "sex", "year"]
 
+# Canonical row order so identical data always serialises to identical
+# bytes; group_by() does not guarantee stable output order, and without this
+# every write looked like a data change to git regardless of content.
+SORT_KEY = ["level", "ssyk_code", "county_code", "sex", "year"]
+
 
 def agg_level(lf: pl.LazyFrame, level_col: str, level_name: str) -> pl.LazyFrame:
     """Aggregate value to a single SSYK level, keeping regional/demographic dims."""
@@ -180,7 +185,7 @@ def main() -> None:
     df_agg = aggregate_all_levels(lf)
 
     name_map = load_name_map(paths)
-    df_final = map_occupation_names(df_agg, name_map)
+    df_final = map_occupation_names(df_agg, name_map).sort(SORT_KEY)
 
     log_diagnostics(df_final)
 
