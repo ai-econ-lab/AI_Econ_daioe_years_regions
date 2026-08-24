@@ -19,22 +19,55 @@ geo_pull   ----------03------------->
 
 | Branch | Role | Build script | Output |
 |---|---|---|---|
-| `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet` |
-| `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `data/daioe_scb_years_all_levels.parquet` |
-| `geo_pull` | Maintain county reference coordinates | `main.py` | `data/county_coordinates.parquet` |
-| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
-| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, auto-promoted from `development` |
+| `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `ssyk12_aggregated_ssyk4_to_ssyk1.parquet`, published to the `pipeline-data-latest` release |
+| `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet`, published to `pipeline-data-latest` |
+| `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet`, published to `pipeline-data-latest` |
+| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` (the only generated file still committed to a branch, since `app.py` reads it directly), also published to `pipeline-data-latest` |
+| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the citable `dataset-latest` release |
 
-Workflows run daily and in sequence (`01` at 00:00 UTC, `03` at 00:15 UTC,
-`04` at 00:30 UTC; `02` fires on push from `daioe_pull` rather than its own
-schedule), so `main` reflects `development`'s dataset roughly 30 minutes
-after the upstream pulls land. **Workflow `04_development_to_main.yml`
+None of the four stages commit their output onto a branch's git tree
+any more, other than `development`'s one tracked file above; that was
+growing this repo by tens of megabytes per run, twice a day, from rows
+that hadn't actually changed. Every stage publishes to a shared
+`pipeline-data-latest` GitHub release instead, downloading its own
+inputs from there rather than relying on a branch's tree already
+having them, and `04` re-publishes the current merged file under a
+separate, stable `dataset-latest` release — see "Getting the dataset"
+below.
+
+Workflows chain explicitly: `01` (daily 00:00 UTC) triggers `02` on
+completion; `02` and `03` (daily 00:15 UTC, independent of the
+daioe/scb pull) each trigger `04` on completion. `04` also runs on its
+own daily schedule (00:30 UTC) as a fallback, and on a push to
+`development`. All four workflows live only on `main`, and each keeps
+a synced copy of itself on its own source branch after every run, so
+pushing directly to `scb_pull`/`daioe_pull`/`geo_pull`/`development`
+(e.g. a script fix) still triggers that stage immediately rather than
+waiting for the next scheduled run. **Workflow `04_development_to_main.yml`
 promotes only the dataset parquet to `main`, not `README.md`, `app.py`,
 `_brand.yml`, or the dependency files.** Those stay on `development` while
 the app is under active development; `main`'s README is maintained
 independently and describes the dataset only. This is a deliberate,
 temporary split: once the app is ready, `main` will start receiving app
 files again.
+
+## Getting the dataset
+
+The published, citable dataset is a GitHub release asset, not a path in
+this repository's tree:
+
+```bash
+gh release download dataset-latest --repo <owner>/<repo> \
+  -p 'daioe_scb_years_all_levels_geo.parquet'
+```
+
+Replace `<owner>/<repo>` with this repository's own `owner/name` (run
+`gh repo view --json nameWithOwner -q .nameWithOwner` from a clone to
+get it, or read it off this page's URL) — the workflows themselves
+resolve it automatically via `${{ github.repository }}`, so nothing
+here is hard-coded to a specific GitHub organisation. The same file is
+also still committed at `data/daioe_scb_years_all_levels_geo.parquet`
+on this branch for anyone who prefers to just read it from a clone.
 
 ## Data sources
 
@@ -137,7 +170,8 @@ aggregating, or weighted averages will silently propagate `NaN`.
 
 ```
 .github/workflows/   The four pipeline workflows (scheduled + push-triggered)
-data/                daioe_scb_years_all_levels_geo.parquet (promoted from development)
+data/                daioe_scb_years_all_levels_geo.parquet (promoted from development;
+                      also published to the dataset-latest release, see above)
 ```
 
 The Shiny app (`app.py`, `_brand.yml`, `pyproject.toml`, `uv.lock`,
