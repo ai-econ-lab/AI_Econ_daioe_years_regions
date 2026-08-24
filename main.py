@@ -53,7 +53,7 @@ def load_county_coordinates(path: Path) -> pl.DataFrame:
 
 
 def main() -> None:
-    coords = load_county_coordinates(SOURCE_PATH)
+    coords = load_county_coordinates(SOURCE_PATH).sort("county_code")
     coords.write_parquet(OUTPUT_PATH)
     print(f"Exported {coords.height} counties to {OUTPUT_PATH}")
 
