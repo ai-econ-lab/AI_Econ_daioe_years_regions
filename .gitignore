@@ -6,3 +6,11 @@
 
 # Ruff linter cache
 *.ruff_cache
+
+# Generated pipeline intermediates: published to the pipeline-data-latest
+# GitHub release by CI instead of being committed here. These were the
+# source of this repo's git history bloat (~33 MB recommitted per run,
+# twice a day). daioe_scb_years_all_levels_geo.parquet stays tracked: it's
+# the one file app.py reads, at import time with no fallback.
+data/daioe_scb_years_all_levels.parquet
+data/county_coordinates.parquet
