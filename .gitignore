@@ -6,3 +6,9 @@
 
 # Ruff linter cache
 *.ruff_cache
+
+# Generated pipeline input: published to the pipeline-data-latest GitHub
+# release by workflow 01 and downloaded fresh by workflow 02 instead of
+# being committed here. This file was the largest source of this repo's
+# git history bloat (~1.6 MB recommitted daily, unstable row order).
+data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet
