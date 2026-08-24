@@ -32,15 +32,18 @@ DAIOE_SOURCE = (
     "https://raw.githubusercontent.com/joseph-data/07_translate_ssyk/main/"
     "03_translated_files/daioe_ssyk2012_translated.csv"
 )
-SCB_SOURCE = (
-    "https://raw.githubusercontent.com/joseph-data/AI_Econ_daioe_years_regions/daioe_pull/"
-    "data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet"
-)
+SCB_SOURCE = DATA_DIR / "processed" / "ssyk12_aggregated_ssyk4_to_ssyk1.parquet"
 
 OUTPUT_PATH = DATA_DIR / "daioe_scb_years_all_levels.parquet"
 
 # First year of SSYK2012 publication
 SSYK12_START_YEAR = 2014
+
+# Canonical row order so identical data always serialises to identical
+# bytes; the final join inherits its order from scb_changes, whose group_by
+# does not guarantee stable output order, and without this every write
+# looked like a data change to git regardless of content.
+SORT_KEY = ["level", "ssyk_code", "county_code", "sex", "year"]
 
 
 # ---------------------------------------------------------------------------
@@ -299,11 +302,15 @@ def main() -> None:
     daioe_all_levels = build_exposure_levels(daioe_all_levels)
 
     # --- 8. Final merge: SCB changes + DAIOE exposure ---
-    final = scb_changes.join(
-        daioe_all_levels,
-        on=["year", "ssyk_code"],
-        how="left",
-    ).drop("level_right")
+    final = (
+        scb_changes.join(
+            daioe_all_levels,
+            on=["year", "ssyk_code"],
+            how="left",
+        )
+        .drop("level_right")
+        .sort(SORT_KEY)
+    )
 
     # --- Export ---
     final.sink_parquet(OUTPUT_PATH)
