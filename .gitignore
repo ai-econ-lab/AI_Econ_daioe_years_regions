@@ -6,3 +6,7 @@
 
 # Ruff linter cache
 *.ruff_cache
+
+# Generated pipeline output: published to the pipeline-data-latest GitHub
+# release by workflow 03 instead of being committed here.
+data/county_coordinates.parquet
