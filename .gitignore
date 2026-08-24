@@ -6,3 +6,9 @@
 
 # Python bytecode cache directories
 __pycache__/
+
+# Generated pipeline intermediate: consumed within the same job run by
+# aggregate.py and never committed by CI onto this branch. Never a churn
+# source, but it's derived output, not source data, so it doesn't belong
+# tracked here either.
+data/scb_yr_regions.parquet
