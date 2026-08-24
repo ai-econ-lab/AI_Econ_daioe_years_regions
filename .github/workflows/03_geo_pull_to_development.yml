@@ -10,8 +10,8 @@ on:
         description: "Source branch to run scripts from"
         required: false
         default: "geo_pull"
-      target_branch:
-        description: "Target branch to push data into"
+      scripts_branch:
+        description: "Branch that holds scripts/merge_geo.py"
         required: false
         default: "development"
   schedule:
@@ -23,10 +23,16 @@ concurrency:
 
 permissions:
   contents: write
-  actions: read
+  actions: write  # needed to trigger 04 via `gh workflow run` below
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Single repo-wide release holding every stage's parquet output, replacing
+  # per-branch git commits that were growing this repo by ~33 MB/day. Every
+  # stage across 01-04 uploads its output here instead of committing it onto
+  # the target branch; consumers `gh release download` their inputs from here
+  # rather than relying on the target branch's git tree already having them.
+  RELEASE_TAG: pipeline-data-latest
 
 
 # ============ Build ============ #
@@ -70,26 +76,20 @@ jobs:
           path: data/county_coordinates.parquet
 
 
-# ============ Sync ============ #
+# ============ Merge & publish ============ #
 
-  sync-target:
+  merge-and-publish:
     runs-on: ubuntu-latest
     needs: build-data
-    # Shared with 02_daioe_pull_to_development.yml's sync-target job: both
-    # workflows write to the same `development` branch independently, so
-    # this queues them instead of racing two concurrent pushes.
-    concurrency:
-      group: development-data-write
-      cancel-in-progress: false
     env:
-      TARGET_BRANCH: ${{ github.event.inputs.target_branch || vars.TARGET_BRANCH || 'development' }}
+      SCRIPTS_BRANCH: ${{ github.event.inputs.scripts_branch || vars.SCRIPTS_BRANCH || 'development' }}
 
     steps:
-      - name: Checkout target
+      - name: Checkout scripts
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: ${{ env.SCRIPTS_BRANCH }}
 
       - name: Download data artifact
         uses: actions/download-artifact@v4
@@ -119,32 +119,89 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Download daioe dataset from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            -p 'daioe_scb_years_all_levels.parquet' -D data --clobber || \
+            echo "No daioe_scb_years_all_levels.parquet published yet (02 hasn't run); merge_geo.py will fail until it has."
+
       - name: Merge geodata into the daioe dataset
         run: |
           set -euo pipefail
           uv run python scripts/merge_geo.py
 
-      - name: Commit and push
+      - name: Publish to release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+              --target main \
+              --title "Pipeline data (latest)" \
+              --notes "Auto-updated by the data pipeline; each asset is superseded on every run. Not a versioned release - see README for provenance and schema, and the dataset-latest release for the citable published dataset."
+          gh release upload "${RELEASE_TAG}" \
+            data/county_coordinates.parquet data/daioe_scb_years_all_levels_geo.parquet \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Trigger next stage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run 04_development_to_main.yml --repo "${GITHUB_REPOSITORY}" --ref main
+
+
+# ============ Keep geo_pull's workflow copy in sync ============ #
+# This workflow lives only on `main`; `on: push: geo_pull` needs a copy of
+# this file checked in on geo_pull itself to fire, because GitHub resolves
+# push-event triggers from the pushed ref's own tree, not the default
+# branch. Re-publish main's copy onto geo_pull after every run so a manual
+# edit here never drifts out of sync with what actually runs, and so a
+# plain push to geo_pull keeps triggering this workflow immediately
+# instead of only running on the daily schedule.
+
+  sync-workflow-copy:
+    runs-on: ubuntu-latest
+    needs: merge-and-publish
+    env:
+      SOURCE_BRANCH: ${{ github.event.inputs.source_branch || vars.SOURCE_BRANCH || 'geo_pull' }}
+
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_BRANCH }}
+
+      - name: Fetch main
+        run: git fetch origin main --depth=1
+
+      - name: Sync workflow file from main
+        run: |
+          set -euo pipefail
+          mkdir -p .github/workflows
+          git show origin/main:.github/workflows/03_geo_pull_to_development.yml \
+            > .github/workflows/03_geo_pull_to_development.yml
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/county_coordinates.parquet data/daioe_scb_years_all_levels_geo.parquet
+          git add .github/workflows/03_geo_pull_to_development.yml
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "Workflow copy already in sync."
             exit 0
           fi
-          git commit -m "chore: update county_coordinates.parquet [skip ci]"
+          git commit -m "chore: sync 03 workflow copy from main [skip ci]"
 
           for attempt in 1 2 3 4 5; do
-            if git push origin "${TARGET_BRANCH}"; then
+            if git push origin "${SOURCE_BRANCH}"; then
               exit 0
             fi
-            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${TARGET_BRANCH} and retrying..."
-            git fetch origin "${TARGET_BRANCH}"
-            git rebase "origin/${TARGET_BRANCH}"
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${SOURCE_BRANCH} and retrying..."
+            git fetch origin "${SOURCE_BRANCH}"
+            git rebase "origin/${SOURCE_BRANCH}"
             sleep $((attempt * 5))
           done
 
-          echo "ERROR: failed to push to ${TARGET_BRANCH} after 5 attempts."
+          echo "ERROR: failed to push to ${SOURCE_BRANCH} after 5 attempts."
           exit 1

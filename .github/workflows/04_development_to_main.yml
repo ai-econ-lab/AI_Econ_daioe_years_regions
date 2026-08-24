@@ -4,16 +4,7 @@ on:
   push:
     branches:
       - development
-  workflow_dispatch:
-    inputs:
-      source_branch:
-        description: "Source branch to promote deploy files from"
-        required: false
-        default: "development"
-      target_branch:
-        description: "Target branch to push deploy files into"
-        required: false
-        default: "main"
+  workflow_dispatch: {}
   schedule:
     - cron: "30 0 * * *"  # daily at 00:30 UTC (after the daioe/geo pulls land)
 
@@ -26,91 +17,144 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # 01-03 no longer commit their output onto a branch's git tree; they
+  # publish to the shared `pipeline-data-latest` release instead (see those
+  # workflows' comments). This job takes whatever 02/03 most recently
+  # published there and does two things with it: keeps `development`'s one
+  # tracked parquet (the file app.py reads at import time, with no
+  # fallback) in sync, and re-publishes it under a separate, stable
+  # `dataset-latest` release, which is what external users and main's
+  # README should point at.
+  PIPELINE_RELEASE_TAG: pipeline-data-latest
+  DATASET_RELEASE_TAG: dataset-latest
 
 
-# ============ Promote dataset ============ #
+# ============ Update development's tracked dataset ============ #
 # App files (app.py, _brand.yml, pyproject.toml, uv.lock, .python-version)
-# are intentionally NOT promoted while the app is under active development
-# on `development`. README.md is also excluded: `main`'s README is
-# maintained independently (data-only) while `development`'s documents the
-# full pipeline and in-progress app. Only the dataset parquet is synced.
+# are intentionally NOT touched here while the app is under active
+# development on `development`. README.md is also excluded. Only the one
+# dataset parquet app.py reads is kept in sync.
 
 jobs:
-  sync-deploy-files:
+  update-development:
     runs-on: ubuntu-latest
     env:
-      SOURCE_BRANCH: ${{ github.event.inputs.source_branch || vars.SOURCE_BRANCH || 'development' }}
-      TARGET_BRANCH: ${{ github.event.inputs.target_branch || vars.TARGET_BRANCH || 'main' }}
+      DEVELOPMENT_BRANCH: ${{ github.event.inputs.development_branch || vars.DEVELOPMENT_BRANCH || 'development' }}
 
     steps:
-      - name: Checkout source
+      - name: Download latest merged dataset from the pipeline release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          gh release download "${PIPELINE_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            -p 'daioe_scb_years_all_levels_geo.parquet' -D data --clobber
+
+      - name: Validate downloaded file
+        run: |
+          set -euo pipefail
+          if [ ! -f "data/daioe_scb_years_all_levels_geo.parquet" ]; then
+            echo "ERROR: Missing data/daioe_scb_years_all_levels_geo.parquet"
+            exit 1
+          fi
+
+      - name: Checkout development
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.SOURCE_BRANCH }}
-          path: source
+          ref: ${{ env.DEVELOPMENT_BRANCH }}
+          path: development
 
-      - name: Validate deploy files
+      - name: Commit onto development if changed
         run: |
           set -euo pipefail
-          cd source
-          required_files=(
-            "data/daioe_scb_years_all_levels_geo.parquet"
-          )
-
-          for file in "${required_files[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "ERROR: Missing required deploy file: $file"
-              exit 1
-            fi
-          done
-
-      - name: Create deploy bundle
-        run: |
-          set -euo pipefail
-          cd source
-          files=(
-            "data/daioe_scb_years_all_levels_geo.parquet"
-          )
-
-          tar -czf ../deploy-files.tgz "${files[@]}"
-
-      - name: Checkout target
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ env.TARGET_BRANCH }}
-          path: target
-
-      - name: Apply deploy bundle
-        run: |
-          set -euo pipefail
-          tar -xzf deploy-files.tgz -C target
-
-      - name: Commit and push
-        working-directory: target
-        run: |
-          set -euo pipefail
+          cp data/daioe_scb_years_all_levels_geo.parquet \
+            development/data/daioe_scb_years_all_levels_geo.parquet
+          cd development
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            data/daioe_scb_years_all_levels_geo.parquet
-
+          git add data/daioe_scb_years_all_levels_geo.parquet
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "chore: promote dataset [skip ci]"
+          git commit -m "chore: update daioe_scb_years_all_levels_geo.parquet [skip ci]"
 
           for attempt in 1 2 3 4 5; do
-            if git push origin "${TARGET_BRANCH}"; then
+            if git push origin "${DEVELOPMENT_BRANCH}"; then
               exit 0
             fi
-            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${TARGET_BRANCH} and retrying..."
-            git fetch origin "${TARGET_BRANCH}"
-            git rebase "origin/${TARGET_BRANCH}"
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${DEVELOPMENT_BRANCH} and retrying..."
+            git fetch origin "${DEVELOPMENT_BRANCH}"
+            git rebase "origin/${DEVELOPMENT_BRANCH}"
             sleep $((attempt * 5))
           done
 
-          echo "ERROR: failed to push to ${TARGET_BRANCH} after 5 attempts."
+          echo "ERROR: failed to push to ${DEVELOPMENT_BRANCH} after 5 attempts."
+          exit 1
+
+      - name: Publish to the dataset release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+              --target main \
+              --title "AI-SCB Year and Regions - dataset (latest)" \
+              --notes "The published, citable dataset (data/LICENSE: CC BY 4.0). Superseded on every successful pipeline run; see main's README for schema and provenance."
+          gh release upload "${DATASET_RELEASE_TAG}" data/daioe_scb_years_all_levels_geo.parquet \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+
+
+# ============ Keep development's workflow copy in sync ============ #
+# This workflow lives only on `main`; `on: push: development` needs a copy
+# of this file checked in on development itself to fire, because GitHub
+# resolves push-event triggers from the pushed ref's own tree, not the
+# default branch. Re-publish main's copy onto development after every run
+# so a manual edit here never drifts out of sync with what actually runs.
+
+  sync-workflow-copy:
+    runs-on: ubuntu-latest
+    needs: update-development
+    env:
+      DEVELOPMENT_BRANCH: ${{ github.event.inputs.development_branch || vars.DEVELOPMENT_BRANCH || 'development' }}
+
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.DEVELOPMENT_BRANCH }}
+
+      - name: Fetch main
+        run: git fetch origin main --depth=1
+
+      - name: Sync workflow file from main
+        run: |
+          set -euo pipefail
+          mkdir -p .github/workflows
+          git show origin/main:.github/workflows/04_development_to_main.yml \
+            > .github/workflows/04_development_to_main.yml
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/04_development_to_main.yml
+          if git diff --cached --quiet; then
+            echo "Workflow copy already in sync."
+            exit 0
+          fi
+          git commit -m "chore: sync 04 workflow copy from main [skip ci]"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin "${DEVELOPMENT_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${DEVELOPMENT_BRANCH} and retrying..."
+            git fetch origin "${DEVELOPMENT_BRANCH}"
+            git rebase "origin/${DEVELOPMENT_BRANCH}"
+            sleep $((attempt * 5))
+          done
+
+          echo "ERROR: failed to push to ${DEVELOPMENT_BRANCH} after 5 attempts."
           exit 1
