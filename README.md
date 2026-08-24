@@ -173,11 +173,21 @@ uv sync
 uv run shiny run app.py
 ```
 
+## Licensing
+
+Code (`app.py`, `scripts/`, `_brand.yml`) is MIT-licensed; see `LICENSE`. The
+published dataset under `data/` is CC BY 4.0-licensed; see `data/LICENSE`.
+This matches the licensing of `ai-econ-lab/daioe_translations` (MIT) and
+`ai-econ-lab/daioe_dataset` (CC BY 4.0).
+
 ## Repository layout on this branch
 
 ```
 app.py           Shiny (Python, shiny.express) geodata-check app
-_brand.yml       App theming
+_brand.yml       App theming (AI-Econ Lab brand, shared with the org's other apps)
+logos/lab.svg    Lab logo used by _brand.yml
+LICENSE          MIT (code)
 data/            daioe_scb_years_all_levels_geo.parquet (promoted from development)
+data/LICENSE     CC BY 4.0 (data)
 pyproject.toml, uv.lock, .python-version
 ```

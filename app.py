@@ -43,7 +43,7 @@ MARKERS = [
     for row in county_points.iter_rows(named=True)
 ]
 
-ui.page_opts(title="Geodata check")
+ui.page_opts(title="Geodata check", theme=ui.Theme.from_brand(__file__))
 
 ui.tags.link(
     rel="stylesheet",
@@ -69,11 +69,18 @@ ui.tags.script(
     const minExp = Math.min(...exposures);
     const maxExp = Math.max(...exposures);
 
+    // Sequential single-hue ramp (light tint -> full Okabe-Ito blue #0072b2),
+    // not a hue-rotating rainbow: exposure is a sequential quantity, and a
+    // rainbow ramp implies categories that aren't there. Null marker colour
+    // (#65717f) is _brand.yml's "muted" palette entry.
+    const RAMP_LIGHT = [214, 232, 245]; // light blue tint
+    const RAMP_DARK = [0, 114, 178]; // #0072b2
+
     function colorFor(exposure) {{
-      if (exposure === null) return "#999999";
+      if (exposure === null) return "#65717f";
       const t = (exposure - minExp) / (maxExp - minExp || 1);
-      const hue = 220 - t * 220; // blue (low) -> red (high)
-      return `hsl(${{hue}}, 80%, 45%)`;
+      const [r, g, b] = RAMP_LIGHT.map((c, i) => Math.round(c + t * (RAMP_DARK[i] - c)));
+      return `rgb(${{r}}, ${{g}}, ${{b}})`;
     }}
 
     markers.forEach((m) => {{

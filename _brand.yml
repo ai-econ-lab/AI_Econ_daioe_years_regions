@@ -1,69 +1,65 @@
 # ─────────────────────────────────────────────
-# _brand.yml — joseph-data
+# _brand.yml — AI-Econ Lab
+# Canonical palette/type mirrored from ai-econ-lab.github.io's assets/styles.css
+# (navy #232b65 institutional identity + Okabe-Ito CVD-safe data ramp).
 # ─────────────────────────────────────────────
 
 meta:
-  name: joseph-data
-  link: https://github.com/joseph-data
+  name: AI-Econ Lab
+  link: https://ai-econlab.com
 
 logo:
   images:
-    icon-color: logos/jon.png
-    wide-color:  logos/jon.png
-    tall-color:  logos/jon.png
-  small:  icon-color
-  medium: wide-color
-  large:  tall-color
+    lab: logos/lab.svg
+  small:  lab
+  medium: lab
+  large:  lab
 
 # ─── Color ───────────────────────────────────
 color:
   palette:
-    black:   "#1C2826"
-    blue:    "#0C0A3E"
-    gray:    "#2A2E45"
-    neutral: "#F9F7F1"
-    red:     "#BA274A"
-    violet:  "#4D6CFA"
+    navy:    "#232b65"
+    navy-2:  "#33407f"
+    ink:     "#161d2b"
+    neutral: "#f3f5f8"
+    white:   "#ffffff"
+    blue:    "#0072b2"
+    orange:  "#d55e00"
+    green:   "#009e73"
+    pink:    "#cc79a7"
+    link:    "#065f92"
+    muted:   "#65717f"
 
   background: neutral
-  foreground: black
-  primary:    blue
-  secondary:  violet
-  tertiary:   gray
-  danger:     red
+  foreground: ink
+  primary:    navy
+  secondary:  blue
+  tertiary:   navy-2
+  success:    green
+  info:       blue
+  warning:    orange
+  danger:     pink
   light:      neutral
-  dark:       black
+  dark:       ink
 
 # ─── Typography ──────────────────────────────
+# System stacks, matching the site's --serif/--sans/--mono tokens. No Google
+# Fonts: this also drops three font requests from a Space's cold start.
 typography:
-  fonts:
-    - family: Nunito Sans
-      source:  google
-      weight:  [300, 400, 600]
-      style:   normal
-    - family: Montserrat
-      source:  google
-      weight:  [600, 700, 800]
-      style:   normal
-    - family: Fira Code
-      source:  google
-      weight:  [400, 500]
-      style:   normal
-
   base:
-    family:      Nunito Sans
+    family:      'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
     size:        1rem
     weight:      400
     line-height: 1.5
 
   headings:
-    family:      Montserrat
+    family:      '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif'
     weight:      700
     color:       primary
     line-height: 1.2
 
   monospace:
-    family: Fira Code
+    family: 'ui-monospace, "SF Mono", Menlo, "Cascadia Mono", "DejaVu Sans Mono", monospace'
     size:   0.9em
     weight: 400
 
@@ -77,5 +73,12 @@ typography:
     line-height:      1.6
 
   link:
-    color:      secondary
+    color:      link
     decoration: underline
+
+# ─── Framework defaults ──────────────────────
+defaults:
+  bootstrap:
+    defaults:
+      font-family-sans-serif: '"system-ui", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+      font-family-monospace:  'ui-monospace, "SF Mono", Menlo, "Cascadia Mono", "DejaVu Sans Mono", monospace'
