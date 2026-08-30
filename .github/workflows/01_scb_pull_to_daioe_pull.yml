@@ -65,6 +65,8 @@ jobs:
           set -euo pipefail
           uv run python scripts/pull_merge.py
           uv run python scripts/aggregate.py
+          uv run python scripts/pull_national_age.py
+          uv run python scripts/aggregate_national_age.py
 
       - name: Publish to release
         env:
@@ -76,7 +78,9 @@ jobs:
               --target main \
               --title "Pipeline data (latest)" \
               --notes "Auto-updated by the data pipeline; each asset is superseded on every run. Not a versioned release - see README for provenance and schema, and the dataset-latest release for the citable published dataset."
-          gh release upload "${RELEASE_TAG}" data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet \
+          gh release upload "${RELEASE_TAG}" \
+            data/processed/ssyk12_aggregated_ssyk4_to_ssyk1.parquet \
+            data/processed/ssyk12_national_age_aggregated_ssyk4_to_ssyk1.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
 
       - name: Trigger next stage
