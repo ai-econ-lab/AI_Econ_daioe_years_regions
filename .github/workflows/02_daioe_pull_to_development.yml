@@ -71,12 +71,28 @@ jobs:
           set -euo pipefail
           mkdir -p data/processed
           gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
-            -p 'ssyk12_aggregated_ssyk4_to_ssyk1.parquet' -D data/processed --clobber
+            -p 'ssyk12_aggregated_ssyk4_to_ssyk1.parquet' \
+            -p 'ssyk12_national_age_aggregated_ssyk4_to_ssyk1.parquet' \
+            -D data/processed --clobber
 
       - name: Run data scripts
         run: |
           set -euo pipefail
           uv run python main.py
+          uv run python main_national_age.py
+
+      - name: Publish national-age exposure to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+              --target main \
+              --title "Pipeline data (latest)" \
+              --notes "Auto-updated by the data pipeline; each asset is superseded on every run. Not a versioned release - see README for provenance and schema, and the dataset-latest release for the citable published dataset."
+          gh release upload "${RELEASE_TAG}" data/daioe_scb_national_age.parquet \
+            --repo "${GITHUB_REPOSITORY}" --clobber
 
       - name: Upload data artifact
         uses: actions/upload-artifact@v4
