@@ -12,3 +12,9 @@ __pycache__/
 # source, but it's derived output, not source data, so it doesn't belong
 # tracked here either.
 data/scb_yr_regions.parquet
+
+# Generated pipeline outputs for the national age x occupation x sex cut
+# (pull_national_age.py, aggregate_national_age.py): published to the
+# pipeline-data-latest release by workflow 01 instead of being committed.
+data/scb_national_age.parquet
+data/processed/ssyk12_national_age_aggregated_ssyk4_to_ssyk1.parquet
