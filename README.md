@@ -14,9 +14,10 @@ coordinates for mapping.
 
 ## Pipeline architecture
 
-```
-scb_pull   --01--> daioe_pull --02--> development --04--> main
-geo_pull   ----------03------------->
+```mermaid
+graph LR
+    scb_pull -->|01| daioe_pull -->|02| development -->|04| main
+    geo_pull -->|03| development
 ```
 
 | Branch | Role | Build script | Output |
