@@ -178,9 +178,11 @@ columns, years 2014–2024, 21 counties, sex = men/women, `level` ∈
 ## Licensing
 
 The published dataset is CC BY 4.0-licensed, matching
-`ai-econ-lab/daioe_dataset`; see `development`'s `data/LICENSE`.
-Pipeline code is MIT-licensed on `development`; see that branch's
-`LICENSE`.
+`ai-econ-lab/daioe_dataset`; see `data/LICENSE` in this branch. Pipeline
+code is MIT-licensed; see `LICENSE` in this branch. Both licence files
+are kept on `main` (not just `development`) regardless of which other
+files are or aren't promoted here, so GitHub's own licence detection
+picks them up.
 
 ## Repository layout on this branch
 
@@ -189,7 +191,12 @@ Pipeline code is MIT-licensed on `development`; see that branch's
 data/                daioe_scb_years_all_levels_geo.parquet (promoted from
                       development; also published to the dataset-latest
                       release, see above)
+                      LICENSE (CC BY 4.0, data)
+LICENSE               MIT, pipeline code
 ```
+
+Unlike everything else app-related, the two `LICENSE` files stay on
+`main` permanently, not just on `development`.
 
 The Shiny app (`app.py`, `_brand.yml`, `pyproject.toml`, `uv.lock`,
 `.python-version`) lives on `development` while it's under active
