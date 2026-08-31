@@ -38,12 +38,11 @@ graph LR
 | `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the citable `dataset-latest` release |
 
 None of the four stages commit their output onto a branch's git tree
-any more, other than this branch's one tracked file above; that was
-growing this repo by tens of megabytes per run, twice a day, from rows
-that hadn't actually changed. Every stage publishes to a shared
-`pipeline-data-latest` GitHub release instead, downloading its own
-inputs from there rather than relying on a branch's tree already
-having them. The two intermediates this branch's `merge_geo.py` reads,
+any more, other than this branch's one tracked file above. Every stage
+publishes to a shared `pipeline-data-latest` GitHub release instead,
+downloading its own inputs from there rather than relying on a branch's
+tree already having them. The two intermediates this branch's
+`merge_geo.py` reads,
 `daioe_scb_years_all_levels.parquet` and `county_coordinates.parquet`,
 are gitignored here for the same reason; for a local run, fetch them
 first:
@@ -63,11 +62,9 @@ pushing directly to `scb_pull`/`daioe_pull`/`geo_pull`/`development`
 (e.g. a script fix) still triggers that stage immediately rather than
 waiting for the next scheduled run. **Workflow `04_development_to_main.yml`
 promotes only the dataset parquet to `main`, not `README.md`, `app.py`,
-`_brand.yml`, or the dependency files.** Those stay on `development` while
-the app is under active development; `main`'s README is maintained
-independently and describes the dataset only. This is a deliberate,
-temporary split: once the app is ready, `main` will start receiving app
-files again.
+`_brand.yml`, or the dependency files.** Those stay on `development`;
+`main`'s README is maintained independently and describes the dataset
+only.
 
 ## Data sources
 
