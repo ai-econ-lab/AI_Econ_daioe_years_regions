@@ -30,12 +30,11 @@ graph LR
 
 **Data hand-off:** every stage publishes to the `pipeline-data-latest`
 GitHub release and downloads its own inputs from there, rather than
-committing data onto a branch (the old approach grew this repo by tens of
-megabytes per run, twice a day, from rows that hadn't actually changed).
-`development` is the one exception, since `app.py` reads
-`data/daioe_scb_years_all_levels_geo.parquet` directly. `04` also
-re-publishes the current file under a separate, stable `dataset-latest`
-release for external consumers; see "Getting the dataset" below.
+committing data onto a branch. `development` is the one exception, since
+`app.py` reads `data/daioe_scb_years_all_levels_geo.parquet` directly.
+`04` also re-publishes the current file under a separate, stable
+`dataset-latest` release for external consumers; see "Getting the
+dataset" below.
 
 **Scheduling:**
 
@@ -49,12 +48,9 @@ All four workflows live only on `main`; each keeps a synced copy of
 itself on its source branch, so a direct push to
 `scb_pull`/`daioe_pull`/`geo_pull`/`development` still triggers that
 stage immediately rather than waiting for the next scheduled run.
-
-**Why `main` lags on non-dataset files:** `04_development_to_main.yml`
-promotes only the dataset parquet, not `README.md`, `app.py`,
-`_brand.yml` or the dependency files — those stay on `development` while
-the app is under active development. Deliberate and temporary; `main`
-starts receiving app files again once the app is ready.
+`04_development_to_main.yml` promotes only the dataset parquet — see
+"Repository layout on this branch" below for what stays on
+`development`.
 
 ## Getting the dataset
 
