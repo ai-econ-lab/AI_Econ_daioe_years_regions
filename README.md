@@ -191,3 +191,9 @@ data/            daioe_scb_years_all_levels_geo.parquet (promoted from developme
 data/LICENSE     CC BY 4.0 (data)
 pyproject.toml, uv.lock, .python-version
 ```
+
+`_brand.yml` and `logos/lab.svg` are synced automatically from
+[`ai-econ-lab/brand`](https://github.com/ai-econ-lab/brand), the lab's
+canonical brand source, by `.github/workflows/sync_brand.yml` (daily, and
+on demand). Do not hand-edit them here; edit the canonical repo instead,
+or the next sync will overwrite local changes.
