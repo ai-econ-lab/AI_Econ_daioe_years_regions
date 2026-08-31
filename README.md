@@ -23,9 +23,10 @@ Data is produced across four branches, each with its own build script and
 GitHub Actions workflow, and flows one-way into `development` and then
 `main`:
 
-```
-scb_pull   --01--> daioe_pull --02--> development --04--> main
-geo_pull   ----------03------------->
+```mermaid
+graph LR
+    scb_pull -->|01| daioe_pull -->|02| development -->|04| main
+    geo_pull -->|03| development
 ```
 
 | Branch | Role | Build script | Output |
