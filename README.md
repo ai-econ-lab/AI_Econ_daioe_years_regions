@@ -2,9 +2,15 @@
 
 AI occupational exposure (DAIOE) merged with Swedish employment data (SCB),
 broken down by SSYK2012 occupation, county, sex and year, with county
-coordinates for mapping. This branch (`main`) hosts the published dataset
-only. The pipeline that produces it lives across four upstream branches and
-`development`, described below.
+coordinates for mapping.
+
+- **This branch (`main`)** hosts the published dataset only; the pipeline
+  that produces it lives across four upstream branches and `development`,
+  described below.
+- **Dataset:** `data/daioe_scb_years_all_levels_geo.parquet`, 292,446 rows
+  × 72 columns, years 2014–2024, 21 counties.
+- **Licence:** CC BY 4.0 (data), MIT (pipeline code) — see "Licensing"
+  below.
 
 ## Pipeline architecture
 
@@ -21,37 +27,33 @@ geo_pull   ----------03------------->
 | `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
 | `main` | Published dataset only | None | Same file, promoted from `development` |
 
-Every stage publishes its output to the `pipeline-data-latest` GitHub
-release and downloads its own inputs from there, rather than committing
-data onto a branch. The old approach was a git commit onto the target
-branch, which grew this repo by tens of megabytes per run, twice a day,
-from rows that hadn't actually changed. `development` is the one
-exception: it keeps `data/daioe_scb_years_all_levels_geo.parquet`
-committed, since `app.py` reads that file directly. `04` also
-re-publishes the current merged file under a separate, stable
-`dataset-latest` release for external consumers; see "Getting the
-dataset" below.
+**Data hand-off:** every stage publishes to the `pipeline-data-latest`
+GitHub release and downloads its own inputs from there, rather than
+committing data onto a branch (the old approach grew this repo by tens of
+megabytes per run, twice a day, from rows that hadn't actually changed).
+`development` is the one exception, since `app.py` reads
+`data/daioe_scb_years_all_levels_geo.parquet` directly. `04` also
+re-publishes the current file under a separate, stable `dataset-latest`
+release for external consumers; see "Getting the dataset" below.
 
-Stages chain automatically:
+**Scheduling:**
 
-- `01` runs daily at 00:00 UTC and triggers `02` on completion.
-- `03` runs independently, daily at 00:15 UTC.
+- `01` daily at 00:00 UTC, triggers `02` on completion.
+- `03` independently, daily at 00:15 UTC.
 - `02` and `03` each trigger `04` on completion.
 - `04` also runs its own daily schedule (00:30 UTC) as a fallback, and on
   a push to `development`.
 
-All four workflows live only on `main`. Each one re-publishes its own
-copy onto its source branch after every run, so pushing directly to
-`scb_pull`/`daioe_pull`/`geo_pull`/`development` (e.g. a script fix)
-still triggers that stage immediately, rather than waiting for the next
-scheduled run.
+All four workflows live only on `main`; each keeps a synced copy of
+itself on its source branch, so a direct push to
+`scb_pull`/`daioe_pull`/`geo_pull`/`development` still triggers that
+stage immediately rather than waiting for the next scheduled run.
 
-`04_development_to_main.yml` promotes only the dataset parquet to
-`main`, not `README.md`, `app.py`, `_brand.yml` or the dependency
-files. Those stay on `development` while the app is under active
-development; `main`'s README is maintained independently and describes
-the dataset only. This is a deliberate, temporary split: once the app is
-ready, `main` will start receiving app files again.
+**Why `main` lags on non-dataset files:** `04_development_to_main.yml`
+promotes only the dataset parquet, not `README.md`, `app.py`,
+`_brand.yml` or the dependency files — those stay on `development` while
+the app is under active development. Deliberate and temporary; `main`
+starts receiving app files again once the app is ready.
 
 ## Getting the dataset
 
@@ -62,7 +64,7 @@ gh release download dataset-latest --repo <owner>/<repo> \
   -p 'daioe_scb_years_all_levels_geo.parquet'
 ```
 
-`<owner>/<repo>` is this repository's own `owner/name`. Run
+`<owner>/<repo>` is this repository's own `owner/name` — run
 `gh repo view --json nameWithOwner -q .nameWithOwner` from a clone, or
 read it off this page's URL. The same file is also committed at
 `data/daioe_scb_years_all_levels_geo.parquet` on this branch, for anyone
@@ -83,20 +85,20 @@ table are combined, since SCB revised its table ID over time:
 | `YREG60N` | 2019–2021 |
 | `YREG60BAS` | 2020–2024 |
 
-Where vintages overlap, the more recent table wins (deduped on `code_4`
-× `county_code` × `sex` × `year`). Each row is an employment count for a
-4-digit SSYK2012 occupation, county, sex (men/women) and year. National
-totals, unspecified-occupation rows and municipality-level regions are
-all dropped; only county-level regions remain.
+- Where vintages overlap, the more recent table wins (deduped on
+  `code_4` × `county_code` × `sex` × `year`).
+- Each row is an employment count for a 4-digit SSYK2012 occupation,
+  county, sex (men/women) and year.
+- National totals, unspecified-occupation rows and municipality-level
+  regions are all dropped; only county-level regions remain.
 
 ### AI exposure scores: DAIOE
 
 Sourced from
 [`ai-econ-lab/daioe_translations`](https://github.com/ai-econ-lab/daioe_translations)
 (`03_translated_files/daioe_ssyk2012_translated.csv`), which translates
-occupational AI-exposure scores onto SSYK2012 4-digit codes. Scores are
-provided per year and per AI application/benchmark domain (columns
-prefixed `daioe_`):
+occupational AI-exposure scores onto SSYK2012 4-digit codes, one column
+per year per AI application/benchmark domain (prefixed `daioe_`):
 
 `allapps` (combined), `stratgames` (strategic games), `videogames`,
 `imgrec` (image recognition), `imgcompr` (image comprehension), `imggen`
@@ -104,10 +106,10 @@ prefixed `daioe_`):
 (language modelling), `translat` (translation), `speechrec` (speech
 recognition), `genai` (generative AI).
 
-The DAIOE source covers a limited span of years. `daioe_pull/main.py`
+The DAIOE source covers a limited span of years; `daioe_pull/main.py`
 extends the series forward to match the latest SCB year by repeating the
-last known year's scores unchanged: frozen at their most recent value,
-not forecast.
+last known year's scores unchanged (frozen at their most recent value,
+not forecast).
 
 ### County coordinates
 
@@ -115,15 +117,15 @@ Compiled manually in `geo_pull/county_coordinates.csv`: one point per
 Swedish county (SCB län code `01`–`25`, 21 counties) at that county's
 administrative-capital city centre, **not** a computed area centroid.
 
-County/capital mappings come from
-[SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics/regional-divisions/counties-and-municipalities/),
-cross-checked against Wikipedia's "Counties of Sweden". Coordinates were
-compiled from commonly published city-centre sources (Wikipedia,
-[geodatos.net](https://www.geodatos.net/en/coordinates/sweden)),
-spot-checked August 2026. This is intentionally approximate, suitable
-for map markers rather than survey-grade geodata. See
-`geo_pull/README.md` for the full provenance note and a pointer to
-Lantmäteriet if precise centroids are ever needed.
+- Mappings: [SCB, Counties and municipalities in Sweden](https://www.scb.se/en/finding-statistics/regional-statistics/regional-divisions/counties-and-municipalities/),
+  cross-checked against Wikipedia's "Counties of Sweden".
+- Coordinates: compiled from commonly published city-centre sources
+  (Wikipedia, [geodatos.net](https://www.geodatos.net/en/coordinates/sweden)),
+  spot-checked August 2026.
+- Intentionally approximate, suitable for map markers rather than
+  survey-grade geodata; see `geo_pull/README.md` for the full provenance
+  note and a pointer to Lantmäteriet if precise centroids are ever
+  needed.
 
 ## How the merged dataset is built
 
@@ -167,9 +169,10 @@ columns, years 2014–2024, 21 counties, sex = men/women, `level` ∈
 | DAIOE exposure buckets | `daioe_<domain>_Level_Exposure` | 1 (least exposed)–5 (most exposed), quintiles of the weighted percentile |
 | Geography | `county_lat`, `county_lon` | Joined from `county_coordinates.parquet`; see caveats above |
 
-Note: some upstream DAIOE rows carry a literal float `NaN` rather than a
-proper null. Downstream consumers should coerce `NaN → null` before
-aggregating, or weighted averages will silently propagate `NaN`.
+> **Note:** some upstream DAIOE rows carry a literal float `NaN` rather
+> than a proper null. Downstream consumers should coerce `NaN → null`
+> before aggregating, or weighted averages will silently propagate
+> `NaN`.
 
 ## Licensing
 
