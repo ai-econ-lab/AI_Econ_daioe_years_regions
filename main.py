@@ -28,8 +28,10 @@ ROOT = Path.cwd().resolve()
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# joseph-data/07_translate_ssyk was renamed and transferred; it is now
+# ai-econ-lab/daioe_translations.
 DAIOE_SOURCE = (
-    "https://raw.githubusercontent.com/joseph-data/07_translate_ssyk/main/"
+    "https://raw.githubusercontent.com/ai-econ-lab/daioe_translations/main/"
     "03_translated_files/daioe_ssyk2012_translated.csv"
 )
 SCB_SOURCE = DATA_DIR / "processed" / "ssyk12_aggregated_ssyk4_to_ssyk1.parquet"
