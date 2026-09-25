@@ -185,7 +185,7 @@ jobs:
             gh release create "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset (latest)" \
-              --notes ""
+              --notes "Latest published dataset."
           gh release upload "${DATASET_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
@@ -221,7 +221,7 @@ jobs:
             gh release create "${tag}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset ${day}" \
-              --notes ""
+              --notes "Snapshot of the published dataset, ${day}."
           gh release upload "${tag}" "${new_file}" \
             --repo "${GITHUB_REPOSITORY}" --clobber
 
