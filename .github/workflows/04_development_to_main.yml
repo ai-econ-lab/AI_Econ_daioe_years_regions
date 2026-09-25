@@ -66,6 +66,36 @@ jobs:
           ref: ${{ env.DEVELOPMENT_BRANCH }}
           path: development
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ">=3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Download previous dataset release for comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p previous
+          gh release download "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            -p 'daioe_scb_years_all_levels_geo.parquet' -D previous --clobber || \
+            echo "No previous dataset release yet; skipping the comparison checks."
+
+      # Gate: a failure here stops the job before anything is committed to
+      # development or published to either release.
+      - name: Validate dataset before publishing
+        run: |
+          set -euo pipefail
+          previous_args=()
+          if [ -f previous/daioe_scb_years_all_levels_geo.parquet ]; then
+            previous_args=(--previous previous/daioe_scb_years_all_levels_geo.parquet)
+          fi
+          uv run --no-project --with polars python development/scripts/validate.py \
+            data/daioe_scb_years_all_levels_geo.parquet "${previous_args[@]}"
+
       - name: Commit onto development if changed
         run: |
           set -euo pipefail
