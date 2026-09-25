@@ -41,7 +41,7 @@ jobs:
   update-development:
     runs-on: ubuntu-latest
     env:
-      DEVELOPMENT_BRANCH: ${{ github.event.inputs.development_branch || vars.DEVELOPMENT_BRANCH || 'development' }}
+      DEVELOPMENT_BRANCH: ${{ vars.DEVELOPMENT_BRANCH || 'development' }}
 
     steps:
       - name: Checkout development
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ">=3.14"
+          python-version-file: development/.python-version
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -246,7 +246,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: update-development
     env:
-      DEVELOPMENT_BRANCH: ${{ github.event.inputs.development_branch || vars.DEVELOPMENT_BRANCH || 'development' }}
+      DEVELOPMENT_BRANCH: ${{ vars.DEVELOPMENT_BRANCH || 'development' }}
 
     steps:
       - name: Checkout development
