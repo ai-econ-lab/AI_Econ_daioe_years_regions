@@ -166,10 +166,27 @@ columns, years 2014–2024, 21 counties, sex = men/women, `level` ∈
 | DAIOE exposure buckets | `daioe_<domain>_Level_Exposure` | 1 (least exposed)–5 (most exposed), quintiles of the weighted percentile |
 | Geography | `county_lat`, `county_lon` | Joined from `county_coordinates.parquet`; see caveats above |
 
-> **Note:** some upstream DAIOE rows carry a literal float `NaN` rather
-> than a proper null. Downstream consumers should coerce `NaN → null`
-> before aggregating, or weighted averages will silently propagate
-> `NaN`.
+### Missing values
+
+There are no `NaN` or infinite values in the dataset. Missing values
+are null:
+
+- `daioe_<domain>_avg`, `daioe_<domain>_wavg`, the matching `pctl_`
+  columns and `daioe_<domain>_Level_Exposure` are null where DAIOE has
+  no score for any occupation in the group. Six SSYK4 codes (`0110`,
+  `0210`, `0310`, `1111`, `3412`, `7133`) have no scores in any domain,
+  which leaves SSYK1 group `0` (armed forces) null throughout. DAIOE
+  also has no scores for `imgcompr` in 2014 and 2015, or for `imggen`
+  and `translat` in 2014, so every row in those domain-years is null.
+- `chg_*` and `pct_chg_*` are null where the comparison year falls
+  before the start of the series. `pct_chg_*` is also null where the
+  comparison year's count is zero.
+- An `emp_count` of `0` is the value SCB reports, not a suppressed cell;
+  the SCB pull contains no missing counts.
+
+Each release is checked before it is published: no `NaN`/`inf`, unique
+keys, 21 counties, contiguous years, no null coordinates, and
+percentiles and exposure levels in range.
 
 ## Licensing
 
