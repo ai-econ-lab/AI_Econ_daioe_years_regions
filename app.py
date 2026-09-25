@@ -14,8 +14,6 @@ LATEST_YEAR = DATA.get_column("year").max()
 
 county_points = (
     DATA.filter((pl.col("level") == "SSYK1") & (pl.col("year") == LATEST_YEAR))
-    # Some upstream DAIOE rows carry literal float NaN rather than null.
-    .with_columns(pl.col("daioe_allapps_wavg").fill_nan(None))
     .group_by(["county_code", "county", "county_lat", "county_lon"])
     .agg(
         # Weighted by county-level employment (not weight_sum, which is a
