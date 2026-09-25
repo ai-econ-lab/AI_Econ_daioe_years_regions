@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import polars as pl
+import polars.selectors as cs
 
 # ---------------------------------------------------------------------------
 # Paths & Sources
@@ -124,16 +125,20 @@ def aggregate_daioe_level(
         return out
 
     group_keys = ["year", "level"]
-    n_expr = pl.len().over(group_keys)
-    rank_expr = (
-        pl.col(f"^{cfg.prefix}.*_(avg|wavg)$")
-        .rank(method="average", descending=cfg.descending)
-        .over(group_keys)
-    )
+    metric_cols = pl.col(f"^{cfg.prefix}.*_(avg|wavg)$")
+    # count() and rank() both skip nulls, so a missing score gets a null
+    # percentile instead of being ranked as the most exposed occupation.
+    n_expr = metric_cols.count().over(group_keys)
+    rank_expr = metric_cols.rank(
+        method="average",
+        descending=cfg.descending,
+    ).over(group_keys)
 
     return out.with_columns(
         (
-            pl.when(n_expr > 1).then((rank_expr - 1) / (n_expr - 1)).otherwise(0.0)
+            pl.when(n_expr > 1)
+            .then((rank_expr - 1) / (n_expr - 1))
+            .otherwise(pl.when(rank_expr.is_not_null()).then(0.0))
             * cfg.pct_scale
         ).name.prefix("pctl_"),
     )
@@ -171,9 +176,13 @@ def build_scb_employment_changes(scb_lf: pl.LazyFrame) -> pl.LazyFrame:
             (pl.col("emp_count") - pl.col("_emp_1y")).alias("chg_1y"),
             (pl.col("emp_count") - pl.col("_emp_3y")).alias("chg_3y"),
             (pl.col("emp_count") - pl.col("_emp_5y")).alias("chg_5y"),
-            ((pl.col("emp_count") / pl.col("_emp_1y") - 1) * 100).alias("pct_chg_1y"),
-            ((pl.col("emp_count") / pl.col("_emp_3y") - 1) * 100).alias("pct_chg_3y"),
-            ((pl.col("emp_count") / pl.col("_emp_5y") - 1) * 100).alias("pct_chg_5y"),
+            # A zero base year has no defined percentage change (would be inf/NaN).
+            *[
+                pl.when(pl.col(f"_emp_{n}y") > 0)
+                .then((pl.col("emp_count") / pl.col(f"_emp_{n}y") - 1) * 100)
+                .alias(f"pct_chg_{n}y")
+                for n in (1, 3, 5)
+            ],
         )
         .drop("_emp_1y", "_emp_3y", "_emp_5y")
     )
@@ -182,7 +191,10 @@ def build_scb_employment_changes(scb_lf: pl.LazyFrame) -> pl.LazyFrame:
 def build_daioe_ssyk12(daioe_lf: pl.LazyFrame) -> pl.LazyFrame:
     """Derive SSYK2012 hierarchy codes and filter to SSYK12 publication years."""
     return (
-        daioe_lf.with_columns(
+        # The source CSV carries literal NaN for unscored occupations; NaN
+        # would propagate through every mean/sum above it, so make it null.
+        daioe_lf.with_columns((cs.starts_with("daioe_") & cs.float()).fill_nan(None))
+        .with_columns(
             pl.col("ssyk2012_4").str.slice(0, i).alias(f"code_{i}") for i in range(1, 5)
         )
         .drop(pl.col("^ssyk2012.*$"))
