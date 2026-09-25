@@ -91,6 +91,24 @@ for a 4-digit SSYK2012 occupation, county, sex (men/women) and year;
 national totals and unspecified-occupation rows are dropped. County-level
 (not municipality) regions only.
 
+### Breaks in the employment series
+
+The three tables are not defined identically. SCB titles `YREG60` and
+`YREG60N` "Employees 16-64 years" and `YREG60BAS` just "BAS", with no age
+limit stated in its listing. In the overlap years the pipeline keeps
+`YREG60BAS`, whose totals are 0.5% (2020) and 0.6% (2021) higher than
+`YREG60N`'s (4,300,678 against 4,279,535, and 4,414,890 against 4,387,071).
+
+Summed over the SSYK4 rows, employment rises 8.9% from 2022 to 2023 (4.54 to
+4.94 million), inside `YREG60BAS` itself; every other year moves between
+-1.1% and +3.1%. The pipeline applies no adjustment, so `chg_*` and
+`pct_chg_*` for windows that span 2019 to 2020 or 2022 to 2023 include these
+steps.
+
+`scb_pull` logs a warning, and a GitHub Actions annotation, when SCB's
+`AM0208M` folder holds a table that `TABLE_SPECS` does not fetch, which is how
+a newer vintage would show up.
+
 ### AI exposure scores: DAIOE
 
 Sourced from
