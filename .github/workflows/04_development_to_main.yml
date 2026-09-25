@@ -181,13 +181,55 @@ jobs:
           gh release upload "${PIPELINE_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
+          latest_notes="The current published dataset (data/LICENSE: CC BY 4.0). Overwritten on every successful pipeline run, so it is not a fixed version: to cite one, use the dated dataset-YYYY-MM-DD releases, which are only added when the content changes. See main's README for schema and provenance."
           gh release view "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset (latest)" \
-              --notes "The published, citable dataset (data/LICENSE: CC BY 4.0). Superseded on every successful pipeline run; see main's README for schema and provenance."
+              --notes "${latest_notes}"
+          gh release edit "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            --notes "${latest_notes}"
           gh release upload "${DATASET_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+
+      # dataset-latest is overwritten on every run, so it cannot be cited as a
+      # fixed version. When the published bytes change (or no dated release
+      # exists yet), also keep them under dataset-YYYY-MM-DD. The tag points at
+      # main's newest commit, which by now carries this same parquet. The bytes
+      # only change with the data because the merge runs in the locked
+      # environment. A second change on the same day updates that day's release.
+      - name: Snapshot a dated release when the dataset changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          new_file=development/data/daioe_scb_years_all_levels_geo.parquet
+          old_file=previous/daioe_scb_years_all_levels_geo.parquet
+          new_sha=$(sha256sum "${new_file}" | cut -d' ' -f1)
+          old_sha=""
+          if [ -f "${old_file}" ]; then
+            old_sha=$(sha256sum "${old_file}" | cut -d' ' -f1)
+          fi
+          dated_count=$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 200 \
+            --json tagName -q '[.[] | select(.tagName | startswith("dataset-2"))] | length')
+          if [ "${new_sha}" = "${old_sha}" ] && [ "${dated_count}" != "0" ]; then
+            echo "Dataset unchanged and a dated release already exists; no snapshot."
+            exit 0
+          fi
+
+          day=$(date -u +%F)
+          tag="dataset-${day}"
+          notes="Fixed snapshot of the published dataset (data/LICENSE: CC BY 4.0), taken on ${day} when its content changed. Not overwritten by later runs, unless the dataset changes again on the same day. SHA-256: ${new_sha}. See main's README for schema and provenance."
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${tag}" --repo "${GITHUB_REPOSITORY}" --notes "${notes}"
+          else
+            gh release create "${tag}" --repo "${GITHUB_REPOSITORY}" \
+              --target main \
+              --title "AI-SCB Year and Regions - dataset ${day}" \
+              --notes "${notes}"
+          fi
+          gh release upload "${tag}" "${new_file}" \
             --repo "${GITHUB_REPOSITORY}" --clobber
 
 
