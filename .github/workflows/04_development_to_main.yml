@@ -220,15 +220,11 @@ jobs:
 
           day=$(date -u +%F)
           tag="dataset-${day}"
-          notes="Fixed snapshot of the published dataset (data/LICENSE: CC BY 4.0), taken on ${day} when its content changed. Not overwritten by later runs, unless the dataset changes again on the same day. SHA-256: ${new_sha}. See main's README for schema and provenance."
-          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release edit "${tag}" --repo "${GITHUB_REPOSITORY}" --notes "${notes}"
-          else
+          gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${tag}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset ${day}" \
-              --notes "${notes}"
-          fi
+              --notes ""
           gh release upload "${tag}" "${new_file}" \
             --repo "${GITHUB_REPOSITORY}" --clobber
 

@@ -66,8 +66,8 @@ gh release download dataset-latest --repo <owner>/<repo> \
 `dataset-latest` is overwritten on every run, so it is not a fixed
 version. Each time the dataset's content changes, the pipeline also keeps
 a dated release, `dataset-YYYY-MM-DD`, which later runs do not overwrite;
-cite one of those for a fixed version. Its release notes give the file's
-SHA-256. List them with:
+cite one of those for a fixed version. GitHub shows the file's SHA-256
+next to the asset. List them with:
 
 ```bash
 gh release list --repo <owner>/<repo> | grep 'dataset-2'
