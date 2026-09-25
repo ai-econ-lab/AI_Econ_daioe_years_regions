@@ -38,16 +38,18 @@ dataset" below.
 
 **Scheduling:**
 
-- `01` daily at 00:00 UTC, triggers `02` on completion.
-- `03` independently, daily at 00:15 UTC.
-- `02` and `03` each trigger `04` on completion.
-- `04` also runs its own daily schedule (00:30 UTC) as a fallback, and on
-  a push to `development`.
+- `01` weekly, Mondays at 00:00 UTC, triggers `02` on completion.
+- `02` publishes the merged DAIOE/SCB dataset and triggers `04`.
+- `03` runs on a push to `geo_pull` or a manual dispatch, publishes the
+  county coordinates and triggers `04`; it has no schedule.
+- `04` is the only step that joins the coordinates onto the dataset. It
+  validates the merged file before publishing, and also runs on a push
+  to `development`.
 
 All four workflows live only on `main`; each keeps a synced copy of
 itself on its source branch, so a direct push to
 `scb_pull`/`daioe_pull`/`geo_pull`/`development` still triggers that
-stage immediately rather than waiting for the next scheduled run.
+stage immediately rather than waiting for an upstream trigger.
 `04_development_to_main.yml` promotes only the dataset parquet — see
 "Repository layout on this branch" below for what stays on
 `development`.
