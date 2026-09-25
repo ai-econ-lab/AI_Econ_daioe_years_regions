@@ -1,5 +1,6 @@
 import concurrent.futures
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,6 +36,32 @@ TABLE_SPECS = (
     TableSpec("yr_rg_19_to_21", ("en", "AM", "AM0208", "AM0208M", "YREG60N"), 2),
     TableSpec("yr_rg_20_to_24", ("en", "AM", "AM0208", "AM0208M", "YREG60BAS"), 3),
 )
+
+
+# ========================= New Vintage Check ================================ #
+
+
+def warn_on_unfetched_tables() -> None:
+    """
+    Warn about tables in SCB's AM0208M folder that TABLE_SPECS does not fetch.
+
+    SCB has revised this table's ID over time, so a new ID appearing there
+    means newer years may exist that the pipeline would silently miss. Under
+    GitHub Actions the warning is also emitted as an annotation, so it shows
+    on the run summary and not only in the step log.
+    """
+    known_ids = {spec.ids[-1] for spec in TABLE_SPECS}
+    folder = SCB(*TABLE_SPECS[0].ids[:-1]).info()
+    for table in folder:
+        if table["type"] == "t" and table["id"] not in known_ids:
+            message = (
+                f"SCB table {table['id']} ({table['text']}, updated "
+                f"{table['updated']}) is not fetched; check whether it is a "
+                "newer vintage and add it to TABLE_SPECS"
+            )
+            log.warning(message)
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::warning title=New SCB table::{message}")
 
 
 # ========================= Variable Helpers ================================ #
@@ -249,6 +276,7 @@ def main() -> None:
     """Orchestrate fetch, merge, diagnostics, and save."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+    warn_on_unfetched_tables()
     results = fetch_all_tables()
     df, duplicate_count = combine_tables(results)
 
