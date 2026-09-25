@@ -9,10 +9,9 @@ Runs on `development` after either upstream producer pushes here:
   - 03_geo_pull_to_development.yml   (geo_pull -> development)
 
 Idempotent: purely a function of the two current files in data/, so it's
-safe to re-run regardless of which producer triggered it. If
-county_coordinates.parquet hasn't landed yet (e.g. geo_pull hasn't run for
-the first time), the daioe dataset is passed through unchanged rather than
-failing the build.
+safe to re-run regardless of which producer triggered it. Fails if
+county_coordinates.parquet is missing, since a dataset without coordinates
+is not the published product.
 """
 
 from pathlib import Path
@@ -33,13 +32,12 @@ SORT_KEY = ["year", "county_code", "level", "ssyk_code", "sex"]
 
 
 def main() -> None:
-    daioe = pl.scan_parquet(DAIOE_PATH)
-
+    """Join county coordinates onto the daioe dataset and write the result."""
     if not COORDS_PATH.exists():
-        print(f"WARNING: {COORDS_PATH} not found; passing daioe data through unmerged.")
-        daioe.sort(SORT_KEY).sink_parquet(OUTPUT_PATH)
-        return
+        msg = f"{COORDS_PATH} not found; run geo_pull first"
+        raise FileNotFoundError(msg)
 
+    daioe = pl.scan_parquet(DAIOE_PATH)
     coords = pl.scan_parquet(COORDS_PATH).select(
         ["county_code", "county_lat", "county_lon"],
     )
