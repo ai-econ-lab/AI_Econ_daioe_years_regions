@@ -35,7 +35,7 @@ graph LR
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet`, published to `pipeline-data-latest` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet`, published to `pipeline-data-latest` |
 | `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` (the only generated file still committed here, since `app.py` reads it directly), also published to `pipeline-data-latest` |
-| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the citable `dataset-latest` release |
+| `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the `dataset-latest` release, plus a dated `dataset-YYYY-MM-DD` release whenever its content changes |
 
 None of the four stages commit their output onto a branch's git tree
 any more, other than this branch's one tracked file above. Every stage
@@ -105,6 +105,10 @@ provided per year and per AI application/benchmark domain (columns prefixed
 (image generation), `readcompr` (reading comprehension), `lngmod`
 (language modelling), `translat` (translation), `speechrec` (speech
 recognition), `genai` (generative AI).
+
+The pipeline reads the file at a pinned commit of that repository (the
+`DAIOE_COMMIT` constant in `daioe_pull/main.py`), not its moving `main`
+branch, so new scores enter the dataset when that constant is bumped.
 
 The DAIOE source only covers a limited span of years; `daioe_pull/main.py`
 extends the series forward to match the latest SCB year by repeating the
