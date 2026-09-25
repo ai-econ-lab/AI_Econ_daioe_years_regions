@@ -63,6 +63,16 @@ gh release download dataset-latest --repo <owner>/<repo> \
   -p 'daioe_scb_years_all_levels_geo.parquet'
 ```
 
+`dataset-latest` is overwritten on every run, so it is not a fixed
+version. Each time the dataset's content changes, the pipeline also keeps
+a dated release, `dataset-YYYY-MM-DD`, which later runs do not overwrite;
+cite one of those for a fixed version. Its release notes give the file's
+SHA-256. List them with:
+
+```bash
+gh release list --repo <owner>/<repo> | grep 'dataset-2'
+```
+
 `<owner>/<repo>` is this repository's own `owner/name` — run
 `gh repo view --json nameWithOwner -q .nameWithOwner` from a clone, or
 read it off this page's URL. The same file is also committed at
@@ -104,6 +114,10 @@ per year per AI application/benchmark domain (prefixed `daioe_`):
 (image generation), `readcompr` (reading comprehension), `lngmod`
 (language modelling), `translat` (translation), `speechrec` (speech
 recognition), `genai` (generative AI).
+
+The pipeline reads the file at a pinned commit of that repository (the
+`DAIOE_COMMIT` constant in `daioe_pull/main.py`), not its moving `main`
+branch, so new scores enter the dataset when that constant is bumped.
 
 The DAIOE source covers a limited span of years; `daioe_pull/main.py`
 extends the series forward to match the latest SCB year by repeating the
