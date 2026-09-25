@@ -30,10 +30,13 @@ DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 # joseph-data/07_translate_ssyk was renamed and transferred; it is now
-# ai-econ-lab/daioe_translations.
+# ai-econ-lab/daioe_translations. Pinned to the commit that last changed the
+# translated file (2026-04-23), so a run only picks up new DAIOE scores when
+# this constant is bumped in a commit of its own.
+DAIOE_COMMIT = "e4f265e7c2a4a225f0c1bef0e3f565d1123dc503"
 DAIOE_SOURCE = (
-    "https://raw.githubusercontent.com/ai-econ-lab/daioe_translations/main/"
-    "03_translated_files/daioe_ssyk2012_translated.csv"
+    "https://raw.githubusercontent.com/ai-econ-lab/daioe_translations/"
+    f"{DAIOE_COMMIT}/03_translated_files/daioe_ssyk2012_translated.csv"
 )
 SCB_SOURCE = DATA_DIR / "processed" / "ssyk12_aggregated_ssyk4_to_ssyk1.parquet"
 
