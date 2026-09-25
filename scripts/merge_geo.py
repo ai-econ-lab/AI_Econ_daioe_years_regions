@@ -4,9 +4,9 @@ merge_geo.py.
 Joins county coordinates onto the daioe/SCB dataset that lives on this
 branch's data/ folder, producing the file the Shiny app reads.
 
-Runs on `development` after either upstream producer pushes here:
-  - 02_daioe_pull_to_development.yml (daioe_pull -> development)
-  - 03_geo_pull_to_development.yml   (geo_pull -> development)
+Runs once per pipeline run, in 04_development_to_main.yml, which both
+02_daioe_pull_to_development.yml and 03_geo_pull_to_development.yml trigger
+after publishing their intermediate to the pipeline-data-latest release.
 
 Idempotent: purely a function of the two current files in data/, so it's
 safe to re-run regardless of which producer triggered it. Fails if

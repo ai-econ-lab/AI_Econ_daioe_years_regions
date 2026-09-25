@@ -52,15 +52,19 @@ gh release download pipeline-data-latest --repo <owner>/<repo> \
   -p 'daioe_scb_years_all_levels.parquet' -p 'county_coordinates.parquet' -D data
 ```
 
-Workflows chain explicitly: `01` (daily 00:00 UTC) triggers `02` on
-completion; `02` and `03` (daily 00:15 UTC, independent of the
-daioe/scb pull) each trigger `04` on completion. `04` also runs on its
-own daily schedule (00:30 UTC) as a fallback, and on a push to this
-branch. All four workflows live only on `main`, and each keeps a
-synced copy of itself on its own source branch after every run, so
-pushing directly to `scb_pull`/`daioe_pull`/`geo_pull`/`development`
-(e.g. a script fix) still triggers that stage immediately rather than
-waiting for the next scheduled run. **Workflow `04_development_to_main.yml`
+Workflows chain explicitly: `01` (weekly, Mondays 00:00 UTC) triggers `02`
+on completion. `02` and `03` each publish their intermediate to
+`pipeline-data-latest` and then trigger `04`, the only place
+`merge_geo.py` runs: it joins the latest of both intermediates, runs
+`scripts/validate.py`, and only then commits the tracked parquet and
+publishes to `pipeline-data-latest` and `dataset-latest`. `04` also runs
+on a push to this branch. `03` has no schedule; it runs on a push to
+`geo_pull` or a manual dispatch. All four workflows live only on `main`,
+and each keeps a synced copy of itself on its own source branch after
+every run, so pushing directly to
+`scb_pull`/`daioe_pull`/`geo_pull`/`development` (e.g. a script fix)
+still triggers that stage immediately rather than waiting for an
+upstream trigger. **Workflow `04_development_to_main.yml`
 promotes only the dataset parquet to `main`, not `README.md`, `app.py`,
 `_brand.yml`, or the dependency files.** Those stay on `development`;
 `main`'s README is maintained independently and describes the dataset
