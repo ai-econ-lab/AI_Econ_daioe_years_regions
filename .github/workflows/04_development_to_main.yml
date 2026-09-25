@@ -5,8 +5,6 @@ on:
     branches:
       - development
   workflow_dispatch: {}
-  schedule:
-    - cron: "30 0 * * *"  # daily at 00:30 UTC (after the daioe/geo pulls land)
 
 concurrency:
   group: deploy-sync-${{ github.workflow }}-${{ github.ref }}
@@ -19,17 +17,21 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   # 01-03 no longer commit their output onto a branch's git tree; they
   # publish to the shared `pipeline-data-latest` release instead (see those
-  # workflows' comments). This job takes whatever 02/03 most recently
-  # published there and does two things with it: keeps `development`'s one
-  # tracked parquet (the file app.py reads at import time, with no
-  # fallback) in sync, and re-publishes it under a separate, stable
-  # `dataset-latest` release, which is what external users and main's
-  # README should point at.
+  # workflows' comments). This is the single place the geodata merge runs:
+  # 02 and 03 each publish their intermediate parquet and trigger this
+  # workflow, which takes the latest of both from that release, joins them
+  # with scripts/merge_geo.py, validates the result, and only then keeps
+  # `development`'s one tracked parquet (the file app.py reads at import
+  # time, with no fallback) and main's copy in sync and re-publishes it under
+  # a separate, stable `dataset-latest` release, which is what external
+  # users and main's README should point at. Runs are idempotent, and a run
+  # started by a later trigger cancels an earlier one, so the last run
+  # always sees both inputs.
   PIPELINE_RELEASE_TAG: pipeline-data-latest
   DATASET_RELEASE_TAG: dataset-latest
 
 
-# ============ Update development's tracked dataset ============ #
+# ============ Merge, validate and publish ============ #
 # App files (app.py, _brand.yml, pyproject.toml, uv.lock, .python-version)
 # are intentionally NOT touched here while the app is under active
 # development on `development`. README.md is also excluded. Only the one
@@ -42,23 +44,6 @@ jobs:
       DEVELOPMENT_BRANCH: ${{ github.event.inputs.development_branch || vars.DEVELOPMENT_BRANCH || 'development' }}
 
     steps:
-      - name: Download latest merged dataset from the pipeline release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p data
-          gh release download "${PIPELINE_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
-            -p 'daioe_scb_years_all_levels_geo.parquet' -D data --clobber
-
-      - name: Validate downloaded file
-        run: |
-          set -euo pipefail
-          if [ ! -f "data/daioe_scb_years_all_levels_geo.parquet" ]; then
-            echo "ERROR: Missing data/daioe_scb_years_all_levels_geo.parquet"
-            exit 1
-          fi
-
       - name: Checkout development
         uses: actions/checkout@v4
         with:
@@ -73,6 +58,32 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "development/uv.lock"
+
+      # The locked polars keeps the written parquet byte-identical from run
+      # to run; an unpinned newer polars serialises the same data to
+      # different bytes, which would commit a new copy on every polars release.
+      - name: Install dependencies
+        run: uv sync --frozen --project development
+
+      - name: Download the intermediates from the pipeline release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p development/data
+          gh release download "${PIPELINE_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            -p 'daioe_scb_years_all_levels.parquet' \
+            -p 'county_coordinates.parquet' \
+            -D development/data --clobber
+
+      - name: Merge geodata into the daioe dataset
+        run: |
+          set -euo pipefail
+          cd development
+          uv run python scripts/merge_geo.py
 
       - name: Download previous dataset release for comparison
         env:
@@ -91,16 +102,15 @@ jobs:
           set -euo pipefail
           previous_args=()
           if [ -f previous/daioe_scb_years_all_levels_geo.parquet ]; then
-            previous_args=(--previous previous/daioe_scb_years_all_levels_geo.parquet)
+            previous_args=(--previous ../previous/daioe_scb_years_all_levels_geo.parquet)
           fi
-          uv run --no-project --with polars python development/scripts/validate.py \
+          cd development
+          uv run python scripts/validate.py \
             data/daioe_scb_years_all_levels_geo.parquet "${previous_args[@]}"
 
       - name: Commit onto development if changed
         run: |
           set -euo pipefail
-          cp data/daioe_scb_years_all_levels_geo.parquet \
-            development/data/daioe_scb_years_all_levels_geo.parquet
           cd development
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -124,18 +134,63 @@ jobs:
           echo "ERROR: failed to push to ${DEVELOPMENT_BRANCH} after 5 attempts."
           exit 1
 
-      - name: Publish to the dataset release
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          path: main-branch
+
+      # main's README points at this file, so keep its tracked copy in step
+      # with the release. Only the parquet is touched; main's own files
+      # (README, licences, workflows) stay as they are.
+      - name: Commit onto main if changed
+        run: |
+          set -euo pipefail
+          mkdir -p main-branch/data
+          cp development/data/daioe_scb_years_all_levels_geo.parquet \
+            main-branch/data/daioe_scb_years_all_levels_geo.parquet
+          cd main-branch
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/daioe_scb_years_all_levels_geo.parquet
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update daioe_scb_years_all_levels_geo.parquet [skip ci]"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest main and retrying..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 5))
+          done
+
+          echo "ERROR: failed to push to main after 5 attempts."
+          exit 1
+
+      - name: Publish to the pipeline and dataset releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          gh release upload "${PIPELINE_RELEASE_TAG}" \
+            development/data/daioe_scb_years_all_levels_geo.parquet \
+            --repo "${GITHUB_REPOSITORY}" --clobber
           gh release view "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset (latest)" \
               --notes "The published, citable dataset (data/LICENSE: CC BY 4.0). Superseded on every successful pipeline run; see main's README for schema and provenance."
-          gh release upload "${DATASET_RELEASE_TAG}" data/daioe_scb_years_all_levels_geo.parquet \
+          gh release upload "${DATASET_RELEASE_TAG}" \
+            development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
+
+
 
 
 # ============ Keep development's workflow copy in sync ============ #
