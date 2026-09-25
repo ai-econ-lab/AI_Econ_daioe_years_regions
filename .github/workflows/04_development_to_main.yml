@@ -22,10 +22,11 @@ env:
   # workflow, which takes the latest of both from that release, joins them
   # with scripts/merge_geo.py, validates the result, and only then keeps
   # `development`'s one tracked parquet (the file app.py reads at import
-  # time, with no fallback) in sync and re-publishes it under a separate,
-  # stable `dataset-latest` release, which is what external users and main's
-  # README should point at. Runs are idempotent, and a run started by a later
-  # trigger cancels an earlier one, so the last run always sees both inputs.
+  # time, with no fallback) and main's copy in sync and re-publishes it under
+  # a separate, stable `dataset-latest` release, which is what external
+  # users and main's README should point at. Runs are idempotent, and a run
+  # started by a later trigger cancels an earlier one, so the last run
+  # always sees both inputs.
   PIPELINE_RELEASE_TAG: pipeline-data-latest
   DATASET_RELEASE_TAG: dataset-latest
 
@@ -131,6 +132,45 @@ jobs:
           done
 
           echo "ERROR: failed to push to ${DEVELOPMENT_BRANCH} after 5 attempts."
+          exit 1
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          path: main-branch
+
+      # main's README points at this file, so keep its tracked copy in step
+      # with the release. Only the parquet is touched; main's own files
+      # (README, licences, workflows) stay as they are.
+      - name: Commit onto main if changed
+        run: |
+          set -euo pipefail
+          mkdir -p main-branch/data
+          cp development/data/daioe_scb_years_all_levels_geo.parquet \
+            main-branch/data/daioe_scb_years_all_levels_geo.parquet
+          cd main-branch
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/daioe_scb_years_all_levels_geo.parquet
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update daioe_scb_years_all_levels_geo.parquet [skip ci]"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest main and retrying..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 5))
+          done
+
+          echo "ERROR: failed to push to main after 5 attempts."
           exit 1
 
       - name: Publish to the pipeline and dataset releases
