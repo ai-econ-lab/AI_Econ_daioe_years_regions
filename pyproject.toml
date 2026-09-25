@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "pathlib>=1.0.1",
     "polars>=1.39.3",
     "shiny[theme]>=1.6.0",
 ]
