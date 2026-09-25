@@ -11,7 +11,7 @@ on:
         required: false
         default: "scb_pull"
   schedule:
-    - cron: "0 0 * * *"  # daily at 00:00 UTC
+    - cron: "0 0 * * 1"  # weekly, Mondays at 00:00 UTC
 
 concurrency:
   group: data-sync-${{ github.workflow }}-${{ github.ref }}
@@ -96,7 +96,7 @@ jobs:
 # branch. Re-publish main's copy onto scb_pull after every run so a manual
 # edit here never drifts out of sync with what actually runs, and so a
 # plain push to scb_pull keeps triggering this workflow immediately instead
-# of only running on the daily schedule.
+# of only running on the weekly schedule.
 
   sync-workflow-copy:
     runs-on: ubuntu-latest
