@@ -181,14 +181,11 @@ jobs:
           gh release upload "${PIPELINE_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
-          latest_notes="The current published dataset (data/LICENSE: CC BY 4.0). Overwritten on every successful pipeline run, so it is not a fixed version: to cite one, use the dated dataset-YYYY-MM-DD releases, which are only added when the content changes. See main's README for schema and provenance."
           gh release view "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset (latest)" \
-              --notes "${latest_notes}"
-          gh release edit "${DATASET_RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
-            --notes "${latest_notes}"
+              --notes "Latest published dataset."
           gh release upload "${DATASET_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
@@ -220,15 +217,11 @@ jobs:
 
           day=$(date -u +%F)
           tag="dataset-${day}"
-          notes="Fixed snapshot of the published dataset (data/LICENSE: CC BY 4.0), taken on ${day} when its content changed. Not overwritten by later runs, unless the dataset changes again on the same day. SHA-256: ${new_sha}. See main's README for schema and provenance."
-          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release edit "${tag}" --repo "${GITHUB_REPOSITORY}" --notes "${notes}"
-          else
+          gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${tag}" --repo "${GITHUB_REPOSITORY}" \
               --target main \
               --title "AI-SCB Year and Regions - dataset ${day}" \
-              --notes "${notes}"
-          fi
+              --notes "Snapshot of the published dataset, ${day}."
           gh release upload "${tag}" "${new_file}" \
             --repo "${GITHUB_REPOSITORY}" --clobber
 
