@@ -36,7 +36,7 @@ graph LR
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet` |
 | `development` | Join geo coordinates onto the daioe/SCB dataset | `daioe-merge-geo` | `data/daioe_scb_years_all_levels_geo.parquet` |
-| `main` | Published dataset only | None | Same file, promoted from `development` |
+| `main` | Published dataset and the deployed app | None | The parquet, promoted from `development` by `04`; the app files, promoted by `05` |
 
 **Data hand-off:** every stage publishes to the `pipeline-data-latest`
 GitHub release and downloads its own inputs from there, rather than
@@ -56,13 +56,19 @@ dataset" below.
   validates the merged file before publishing, and also runs on a push
   to `development`.
 
-All four workflows live only on `main`; each keeps a synced copy of
+- `05_promote_app.yml` is run on demand. It lints, type checks and tests
+  `development`, builds the Docker image and requests the app from it, and
+  only then copies the app files to `main` and rebuilds the Space.
+- `sync_to_hub.yml` syncs `main` to the Hugging Face Space
+  [`ai-econ-lab/daioe-explorer-regions`](https://huggingface.co/spaces/ai-econ-lab/daioe-explorer-regions)
+  on a push to `main`, daily, and when `04` or `05` dispatch it.
+
+Workflows `01` to `04` live only on `main`; each keeps a synced copy of
 itself on its source branch, so a direct push to
 `scb_pull`/`daioe_pull`/`geo_pull`/`development` still triggers that
 stage immediately rather than waiting for an upstream trigger.
-`04_development_to_main.yml` promotes only the dataset parquet — see
-"Repository layout on this branch" below for what stays on
-`development`.
+`04_development_to_main.yml` promotes the dataset parquet. `development` is
+the testing bed for the app, which reaches `main` only through `05`.
 
 ## Getting the dataset
 
@@ -247,14 +253,17 @@ MIT-licensed; see `LICENSE`.
 ## Repository layout on this branch
 
 ```
-.github/workflows/   The four pipeline workflows (scheduled + push-triggered)
+.github/workflows/   Pipeline workflows 01 to 05 and sync_to_hub.yml
+app.py, src/         The Shiny app (promoted from development by 05)
+Dockerfile           Image the Space builds (promoted by 05)
+_brand.yml, logos/   App theming and logo (promoted by 05)
+pyproject.toml, uv.lock, .python-version   Dependencies (promoted by 05)
 data/                daioe_scb_years_all_levels_geo.parquet (promoted from
-                      development; also published to the dataset-latest
-                      release, see above)
+                      development by 04; also published to the dataset-latest
+                      release, see above), sweden_counties.geojson (by 05)
                       LICENSE (CC BY 4.0, data)
 LICENSE               MIT, pipeline code
 ```
 
-The Shiny app (`app.py`, `_brand.yml`, `pyproject.toml`, `uv.lock`,
-`.python-version`) lives on `development` while it's under active
-development and isn't promoted here; see `development`'s README.
+The app is developed on `development`, which also holds the tests; see
+`development`'s README.

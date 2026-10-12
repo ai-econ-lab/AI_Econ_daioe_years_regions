@@ -1,0 +1,182 @@
+name: Promote app (development → main)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: "Branch to promote the app from"
+        required: false
+        default: "development"
+      target_branch:
+        description: "Branch the Space builds from"
+        required: false
+        default: "main"
+
+concurrency:
+  group: promote-app
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write  # needed to dispatch sync_to_hub.yml below
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# development is the testing bed; this workflow is the release step. Nothing is
+# copied to the target branch unless the checks pass and the image builds and
+# serves the app. Only the app files listed below move: main keeps its own
+# README, workflows, licences and (via 04) the dataset parquet.
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_branch }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run --frozen ruff check app.py src tests
+
+      - name: Format
+        run: uv run --frozen ruff format --check app.py src tests
+
+      - name: Type check
+        run: uv run --frozen ty check
+
+      - name: Test
+        run: uv run --frozen pytest
+
+      - name: Validate the dataset
+        run: uv run --frozen daioe-validate data/daioe_scb_years_all_levels_geo.parquet
+
+  docker-smoke:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_branch }}
+
+      - name: Build the image
+        run: docker build -t daioe-regions:ci .
+
+      - name: Run it and request the app
+        run: |
+          set -euo pipefail
+          docker run -d --name app -p 7860:7860 daioe-regions:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:7860/; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS -o /dev/null http://localhost:7860/
+          curl -fsS -o /dev/null http://localhost:7860/logos/lab.svg
+          if docker logs app 2>&1 | grep -q Traceback; then
+            echo "ERROR: the app logged a traceback"
+            exit 1
+          fi
+
+      - name: Show the container logs
+        if: failure()
+        run: docker logs app || true
+
+  promote:
+    needs: docker-smoke
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_BRANCH: ${{ inputs.source_branch }}
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_branch }}
+          path: source
+
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.target_branch }}
+          path: target
+
+      - name: Check the deploy files exist
+        run: |
+          set -euo pipefail
+          cd source
+          for file in \
+            Dockerfile .dockerignore app.py _brand.yml pyproject.toml uv.lock \
+            .python-version logos/lab.svg data/sweden_counties.geojson \
+            src/daioe_regions/__init__.py; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: missing deploy file: $file"
+              exit 1
+            fi
+          done
+
+      # src and logos are mirrored so a module deleted on development is also
+      # deleted on main. The README is not copied: main's own carries the Space
+      # front matter. The dataset parquet reaches main through 04.
+      - name: Apply the deploy files
+        run: |
+          set -euo pipefail
+          mkdir -p target/src target/logos target/data
+          rsync -a --delete --exclude '__pycache__' source/src/ target/src/
+          rsync -a --delete source/logos/ target/logos/
+          for file in Dockerfile .dockerignore app.py _brand.yml pyproject.toml \
+            uv.lock .python-version; do
+            cp "source/${file}" "target/${file}"
+          done
+          cp source/data/sweden_counties.geojson target/data/sweden_counties.geojson
+
+      - name: Commit and push
+        id: commit
+        working-directory: target
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -- src logos data/sweden_counties.geojson \
+            Dockerfile .dockerignore app.py _brand.yml pyproject.toml uv.lock \
+            .python-version
+          if git diff --cached --quiet; then
+            echo "No changes to promote."
+            exit 0
+          fi
+          git commit -m "chore: promote app files from ${SOURCE_BRANCH} [skip ci]"
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin "${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}/5); rebasing onto latest ${TARGET_BRANCH} and retrying..."
+            git fetch origin "${TARGET_BRANCH}"
+            git rebase "origin/${TARGET_BRANCH}"
+            sleep $((attempt * 5))
+          done
+
+          echo "ERROR: failed to push to ${TARGET_BRANCH} after 5 attempts."
+          exit 1
+
+      # The push above uses the workflow token, which does not trigger the
+      # Space sync on its own.
+      - name: Rebuild the Space
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run sync_to_hub.yml --repo "${GITHUB_REPOSITORY}" --ref "${TARGET_BRANCH}"

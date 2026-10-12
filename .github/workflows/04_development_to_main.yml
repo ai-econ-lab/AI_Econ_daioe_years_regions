@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write  # needed to dispatch sync_to_hub.yml below
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -167,6 +168,7 @@ jobs:
       # with the release. Only the parquet is touched; main's own files
       # (README, licences, workflows) stay as they are.
       - name: Commit onto main if changed
+        id: promote-data
         run: |
           set -euo pipefail
           mkdir -p main-branch/data
@@ -181,6 +183,7 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update daioe_scb_years_all_levels_geo.parquet [skip ci]"
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
 
           for attempt in 1 2 3 4 5; do
             if git push origin main; then
@@ -254,6 +257,15 @@ jobs:
             gh release upload "${tag}" development/data/schema.json \
               --repo "${GITHUB_REPOSITORY}" --clobber
           fi
+
+      # The Space builds from main, but a push made with the workflow token
+      # does not trigger other workflows, so rebuild it explicitly. Only when
+      # main's parquet changed; a run that changed nothing leaves the Space be.
+      - name: Rebuild the Space when the dataset on main changed
+        if: steps.promote-data.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run sync_to_hub.yml --repo "${GITHUB_REPOSITORY}" --ref main
 
 
 
