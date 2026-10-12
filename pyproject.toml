@@ -1,0 +1,49 @@
+[project]
+name = "daioe-regions"
+version = "0.1.0"
+description = "County map of AI exposure (DAIOE) and employment in Sweden, plus the pipeline steps that build its dataset."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "altair>=6.3.0",
+    "anywidget>=0.11.0",
+    "faicons>=0.2.2",
+    "polars>=1.39.3",
+    "shiny[theme]>=1.6.0",
+    "shinywidgets>=0.8.1",
+]
+
+[project.scripts]
+daioe-merge-geo = "daioe_regions.pipeline.merge_geo:main"
+daioe-validate = "daioe_regions.pipeline.validate:main"
+daioe-schema = "daioe_regions.pipeline.export_schema:main"
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+    "ty>=0.0.86",
+]
+boundaries = ["geopandas"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PTH", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"app.py" = ["D100"]  # Express would render a module docstring as page content
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

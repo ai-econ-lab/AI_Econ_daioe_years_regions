@@ -1,0 +1,21 @@
+# Virtual environment, rebuilt inside the image
+.venv/
+
+# Python and tool caches
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+
+# Git and CI
+.git/
+.github/
+
+# Not needed at runtime
+tests/
+
+# Pipeline intermediates and generated files; the image copies the two data
+# files it needs by name.
+data/daioe_scb_years_all_levels.parquet
+data/county_coordinates.parquet
+data/schema.json
