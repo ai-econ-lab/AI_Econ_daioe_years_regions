@@ -43,7 +43,7 @@ class Paths:
 
 @dataclass(frozen=True, slots=True)
 class Taxonomy:
-    """Labels and filters for DAIOE sub-indices, occupation levels and sex."""
+    """Labels and filters for DAIOE sub-indices and sex."""
 
     subindices: dict[str, str] = field(
         default_factory=lambda: {
@@ -58,14 +58,6 @@ class Taxonomy:
             "imgcompr": "🧩 Image comprehension",
             "stratgames": "♟️ Strategy games",
             "videogames": "🎮 Video games (real time)",
-        }
-    )
-    occupation_levels: dict[str, str] = field(
-        default_factory=lambda: {
-            "SSYK1": "SSYK1 (10 groups)",
-            "SSYK2": "SSYK2 (46 groups)",
-            "SSYK3": "SSYK3 (148 groups)",
-            "SSYK4": "SSYK4 (429 groups)",
         }
     )
     sex_filters: dict[str, list[str]] = field(

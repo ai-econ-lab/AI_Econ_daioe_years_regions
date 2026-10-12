@@ -27,6 +27,7 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.0",
     "ty>=0.0.86",
+    "websockets>=16.0",
 ]
 boundaries = ["geopandas"]
 
@@ -47,3 +48,8 @@ convention = "pep257"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.ty.rules]
+# geopandas is only installed with the optional `boundaries` group, so whether
+# the ignore on its import is needed depends on the environment.
+unused-ignore-comment = "ignore"

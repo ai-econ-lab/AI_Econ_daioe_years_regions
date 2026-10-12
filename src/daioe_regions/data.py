@@ -29,6 +29,19 @@ def year_bounds(df: pl.DataFrame) -> tuple[int, int]:
     return cast(int, years.min()), cast(int, years.max())
 
 
+def level_labels(df: pl.DataFrame) -> dict[str, str]:
+    """SSYK level choices labelled with how many groups each level has."""
+    counts = (
+        df.group_by("level")
+        .agg(pl.col("ssyk_code").n_unique().alias("groups"))
+        .sort("level")
+    )
+    return {
+        row["level"]: f"{row['level']} ({row['groups']} groups)"
+        for row in counts.iter_rows(named=True)
+    }
+
+
 def occupation_choices(df: pl.DataFrame, level: str) -> dict[str, str]:
     """Occupation group choices at one SSYK level, led by the all-occupations option."""
     groups = (
