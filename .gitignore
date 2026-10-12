@@ -1,3 +1,5 @@
 *__pycache__/
 *.ruff_cache/
 *.venv/
+# Claude Code local settings and state
+.claude/
