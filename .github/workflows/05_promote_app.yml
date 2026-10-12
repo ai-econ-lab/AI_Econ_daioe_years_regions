@@ -16,9 +16,11 @@ concurrency:
   group: promote-app
   cancel-in-progress: false
 
+# Read only by default: the checks and the docker smoke test run code from the
+# source branch, so they must not hold a token that can write. Only the promote
+# job gets write access.
 permissions:
-  contents: write
-  actions: write  # needed to dispatch sync_to_hub.yml below
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -97,6 +99,9 @@ jobs:
   promote:
     needs: docker-smoke
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write  # needed to dispatch sync_to_hub.yml below
     env:
       SOURCE_BRANCH: ${{ inputs.source_branch }}
       TARGET_BRANCH: ${{ inputs.target_branch }}
