@@ -264,7 +264,7 @@ src/daioe_regions/schema.py   Typed dataset schema (columns, dtypes, nullability
 src/daioe_regions/data.py     Data loading and polars aggregations
 src/daioe_regions/charts.py   Altair chart builders
 src/daioe_regions/pipeline/   merge_geo, validate, export_schema and build_boundaries steps
-tests/                        pytest suite (synthetic fixtures plus the tracked dataset)
+tests/                        pytest suite (synthetic fixtures, the tracked dataset, a live app session)
 _brand.yml                    App theming (AI-Econ Lab brand, shared with the org's other apps)
 logos/lab.svg                 Lab logo used by _brand.yml
 LICENSE                       MIT (code)

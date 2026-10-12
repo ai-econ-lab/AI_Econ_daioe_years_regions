@@ -92,3 +92,10 @@ def test_occupation_choices_lead_with_all(small_frame: pl.DataFrame) -> None:
 
 def test_year_bounds(small_frame: pl.DataFrame) -> None:
     assert data.year_bounds(small_frame) == (2023, 2024)
+
+
+def test_level_labels_count_the_groups_in_the_data(small_frame: pl.DataFrame) -> None:
+    assert data.level_labels(small_frame) == {
+        "SSYK1": "SSYK1 (1 groups)",
+        "SSYK4": "SSYK4 (3 groups)",
+    }

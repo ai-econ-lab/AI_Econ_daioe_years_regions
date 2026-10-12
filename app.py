@@ -53,7 +53,7 @@ with ui.sidebar(title="Controls", width=300):
         animate=True,
     )
     ui.input_radio_buttons("sex", "Sex", TAXONOMY.sex_labels, inline=True)
-    ui.input_radio_buttons("level", "Occupation level", TAXONOMY.occupation_levels)
+    ui.input_radio_buttons("level", "Occupation level", data.level_labels(DATASET))
     ui.p(APP_TEXT.level_hint, class_=HINT)
     ui.input_selectize(
         "group", "Occupation group", data.occupation_choices(DATASET, "SSYK1")
