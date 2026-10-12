@@ -1,3 +1,13 @@
+---
+title: DAIOE Regions Explorer
+emoji: 🗺️
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # AI-SCB Year and Regions
 
 AI occupational exposure (DAIOE) merged with Swedish employment data (SCB),
