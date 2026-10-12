@@ -20,8 +20,9 @@ pipeline lives across four upstream branches described below.
 
 The app (Shiny Express, Altair) is a county choropleth coloured by AI exposure
 for the chosen DAIOE sub-index, year, sex, SSYK level (1 to 4) and occupation
-group. The app files here are **not** promoted to `main` while the app is under
-active development; see below.
+group. `development` is the testing bed: the app reaches `main`, and the
+Hugging Face Space built from it, only through the `05_promote_app` workflow
+once the checks pass.
 
 ## Pipeline architecture
 
@@ -224,6 +225,13 @@ committed or published.
 ```bash
 uv sync
 uv run shiny run app.py
+```
+
+The Docker image the Space builds can be run the same way:
+
+```bash
+docker build -t daioe-regions .
+docker run -p 7860:7860 daioe-regions
 ```
 
 ## Development
