@@ -1,6 +1,11 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
+resolution-markers = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'emscripten'",
+    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+]
 
 [[package]]
 name = "ai-econ-daioe-years-regions"
@@ -9,6 +14,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "altair" },
     { name = "anywidget" },
+    { name = "faicons" },
     { name = "polars" },
     { name = "shiny", extra = ["theme"] },
     { name = "shinywidgets" },
@@ -18,6 +24,7 @@ dependencies = [
 requires-dist = [
     { name = "altair", specifier = ">=6.3.0" },
     { name = "anywidget", specifier = ">=0.11.0" },
+    { name = "faicons", specifier = ">=0.2.2" },
     { name = "polars", specifier = ">=1.39.3" },
     { name = "shiny", extras = ["theme"], specifier = ">=1.6.0" },
     { name = "shinywidgets", specifier = ">=0.8.1" },
@@ -103,7 +110,7 @@ wheels = [
 
 [[package]]
 name = "brand-yml"
-version = "0.1.1"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eval-type-backport" },
@@ -111,9 +118,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/31/edad83c5d083e4cb673257f9a0e74965b2ef84ddf84b4e476e43e7c145a2/brand_yml-0.1.1.tar.gz", hash = "sha256:db2df05d2eb013221b1d5d4740d5ada894e1fe94e81eb82b4404d90de75bd7bd", size = 773092, upload-time = "2025-04-07T00:14:11.246Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/3a/81a02d47092763f68614ad9066d1f47d3b29741684410b843376680edabc/brand_yml-0.2.0.tar.gz", hash = "sha256:73489597ff9d3a3259e7992de9ea8a9ea3adc6364c4fd22007fdac94e93d0e77", size = 779497, upload-time = "2026-05-21T17:36:34.867Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/aa/b3/05814422cbd0abfb554b5d411fc82f23c85e8fa587f976ec05cef4fc323b/brand_yml-0.1.1-py3-none-any.whl", hash = "sha256:f1bd13fe32eee43b3e36a483184b038575bc386d4576e95ac44ca9522fab58ee", size = 787460, upload-time = "2025-04-07T00:14:08.952Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/8b/bcaf939d8466deaa817992645969ba6623fd677e5775b9519782f7781674/brand_yml-0.2.0-py3-none-any.whl", hash = "sha256:1455fc516ea1f37a9cd2cfb5dda0715ca6b296fb93a0c32bc39fc1ce2e008cd5", size = 795290, upload-time = "2026-05-21T17:36:33.008Z" },
 ]
 
 [[package]]
@@ -165,6 +172,18 @@ wheels = [
 ]
 
 [[package]]
+name = "faicons"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "htmltools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/06/e8/c12ef85c4444616ab1c1e96d5ecbadc8046d40b34797308846a2cfc06c80/faicons-0.2.2.tar.gz", hash = "sha256:6b7d7b19180179b6b83783f91bf6c9311c0f00ae0f97d41be1d24d9942361659", size = 604434, upload-time = "2024-01-16T23:27:21.634Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/3c/1db1b0f878319bb227f35a0fca7cad64e1f528b518bcab1a708da305c86d/faicons-0.2.2-py3-none-any.whl", hash = "sha256:d45d7c2635b53582a3375c67d7e975a28a91d2c16ef5f6b5033b5cdd507224b6", size = 607225, upload-time = "2024-01-16T23:27:19.475Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -175,15 +194,15 @@ wheels = [
 
 [[package]]
 name = "htmltools"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/1d/c568d17e9fb5ad5aa0ca3531c58d36fe69deb8eee4e53ff6425c1f99f210/htmltools-0.6.0.tar.gz", hash = "sha256:e8a3fb023d748935035db7ff17f620612ffc814a6a80b6ae388f7b7ab182adf7", size = 97152, upload-time = "2024-10-29T20:21:43.378Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/54/e1a0ea0b8db8460fdedf584b4136a5b9e7f9d7072ee008f825f29b103660/htmltools-0.7.0.tar.gz", hash = "sha256:b95f922b7038f1b935ce24691ae74cb1ab9526d9c9cf1c2e2f329c38ef227a10", size = 105807, upload-time = "2026-05-21T15:02:33.357Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/ba/aa99706246f1938ca905eb6eeb7db832ac2e157aa4b805acb5cd4cd1791a/htmltools-0.6.0-py3-none-any.whl", hash = "sha256:072a274ff5e2851e0acce13fc5bb2bbdbbad8268dc8b123f881c05012ce7dce0", size = 84954, upload-time = "2024-10-29T20:21:42.067Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/b2/bd9bfa6d77641bd3be57c7cd6ce10294d26db20cb9aedf19ac5d78845886/htmltools-0.7.0-py3-none-any.whl", hash = "sha256:92e5d06aeadb56e0ff63b236971bc58bb9cf6058c7235e3af57868e7bf113e1b", size = 89598, upload-time = "2026-05-21T15:02:32.171Z" },
 ]
 
 [[package]]
@@ -807,7 +826,7 @@ wheels = [
 
 [[package]]
 name = "shiny"
-version = "1.6.0"
+version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
@@ -832,9 +851,9 @@ dependencies = [
     { name = "watchfiles", marker = "sys_platform != 'emscripten'" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ee/f2/d75ad19f6fa0cb244ff04990c61aa28d88300c69d6220dec3ffb8f3e29eb/shiny-1.6.0.tar.gz", hash = "sha256:54bec20a9cfde0dd3a36a9873863be7dbb4729a33fe7abc9ad9488df6efd6f58", size = 5079489, upload-time = "2026-03-20T20:42:58.2Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/fe/910a50b6b4f14cd6b5d76be9ae2146d54597eb72e78ecedc42b60aa3b56d/shiny-1.8.0.tar.gz", hash = "sha256:7377b93455a3c38e7b2fba49efde59fc9998db671dffce502a170ecc15d9be74", size = 5386927, upload-time = "2026-09-13T00:53:15.611Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/30/d442d84e873786cd31b4bdf69b5981119953ebcbdeaf1988c98bf5a9703b/shiny-1.6.0-py3-none-any.whl", hash = "sha256:8e8ae840f565ecf4fb856a843fdc2d73c39e8ffe78141ccc29d802ecfce3657b", size = 3908742, upload-time = "2026-03-20T20:42:56.535Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/b1/f6780c4c3655cb93bc6cf6af6caf8e25fbf01c85f002195da9e39be69d17/shiny-1.8.0-py3-none-any.whl", hash = "sha256:19bc45d80d45242752b78d92abab45f4e72b9ab86b0de436bd8d8795af1aa71d", size = 4071407, upload-time = "2026-09-13T00:53:14.01Z" },
 ]
 
 [package.optional-dependencies]

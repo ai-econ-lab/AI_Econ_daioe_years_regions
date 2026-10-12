@@ -8,14 +8,10 @@ pipeline lives across four upstream branches described below.
 
 ## About the app on this branch
 
-`app.py` here is currently a **geodata sanity check**, not the analytical
-app: it plots one marker per Swedish county, coloured and sized by that
-county's latest-year employment-weighted AI exposure, purely to confirm
-that `county_lat`/`county_lon` joined onto the dataset correctly. More
-substantive app features (occupation drill-down, time series, exposure
-comparisons, etc.) are expected to follow; treat the current map as a data
-QA tool rather than the final product. The app files here are **not**
-promoted to `main` while the app is under active development; see below.
+The app (Shiny Express, Altair) is a county choropleth coloured by AI exposure
+for the chosen DAIOE sub-index, year, sex, SSYK level (1 to 4) and occupation
+group. The app files here are **not** promoted to `main` while the app is under
+active development; see below.
 
 ## Pipeline architecture
 
@@ -217,7 +213,7 @@ uv run shiny run app.py
 
 ## Licensing
 
-Code (`app.py`, `scripts/`, `_brand.yml`) is MIT-licensed; see `LICENSE`. The
+Code (`app.py`, `src/`, `scripts/`, `_brand.yml`) is MIT-licensed; see `LICENSE`. The
 published dataset under `data/` is CC BY 4.0-licensed; see `data/LICENSE`.
 This matches the licensing of `ai-econ-lab/daioe_translations` (MIT) and
 `ai-econ-lab/daioe_dataset` (CC BY 4.0).
@@ -225,7 +221,9 @@ This matches the licensing of `ai-econ-lab/daioe_translations` (MIT) and
 ## Repository layout on this branch
 
 ```
-app.py           Shiny (Python, shiny.express) geodata-check app
+app.py           Shiny Express UI and reactive wiring
+src/data.py      Data loading, constants and polars aggregations
+src/charts.py    Altair chart builders
 _brand.yml       App theming (AI-Econ Lab brand, shared with the org's other apps)
 logos/lab.svg    Lab logo used by _brand.yml
 LICENSE          MIT (code)
