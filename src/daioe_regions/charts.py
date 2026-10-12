@@ -1,22 +1,29 @@
 """Altair chart builders for the county app; each returns one chart."""
 
+from typing import Any, cast
+
 import altair as alt
 import polars as pl
 
-from src.data import BOUNDARIES
-
-# Palette from _brand.yml (Okabe-Ito CVD-safe ramp).
-BLUE = "#0072b2"
-BLUE_TINT = "#d6e8f5"
+from daioe_regions.config import MAP_STYLE
 
 
 def colour_scale(values: pl.Series) -> alt.Scale:
     """Colour scale fitted to the selected year, so county contrast stays visible."""
-    low, high = (0.0, 1.0) if values.is_empty() else (values.min(), values.max())
-    return alt.Scale(domain=[low, high], range=[BLUE_TINT, BLUE], interpolate="lab")
+    low, high = (
+        (0.0, 1.0)
+        if values.is_empty()
+        else (cast(float, values.min()), cast(float, values.max()))
+    )
+    return alt.Scale(
+        domain=[low, high],
+        range=[MAP_STYLE.blue_tint, MAP_STYLE.blue],
+        interpolate="lab",
+    )
 
 
 def build_map(
+    boundaries: dict[str, Any],
     subindex: str,
     occupation: str,
     year: int,
@@ -38,9 +45,9 @@ def build_map(
         pl.col("exposure").alias("value"),
     )
     return (
-        alt.Chart(alt.Data(values=BOUNDARIES["features"]))
+        alt.Chart(alt.Data(values=boundaries["features"]))
         .mark_geoshape(stroke="white")
-        .transform_lookup(
+        .transform_lookup(  # ty: ignore[unresolved-attribute]
             lookup="properties.county_code",
             from_=alt.LookupData(
                 map_values,
@@ -56,11 +63,13 @@ def build_map(
                     title=label,
                     format=".2f",
                     orient="bottom",
-                    gradientLength=260,
-                    titleLimit=300,
+                    gradientLength=MAP_STYLE.legend_gradient_length,
+                    titleLimit=MAP_STYLE.legend_title_limit,
                 ),
             ),
-            strokeWidth=alt.when(hovered).then(alt.value(2)).otherwise(alt.value(0.5)),
+            strokeWidth=alt.when(hovered)
+            .then(alt.value(MAP_STYLE.hover_stroke_width))
+            .otherwise(alt.value(MAP_STYLE.base_stroke_width)),
             tooltip=[
                 alt.Tooltip("county:N", title="County"),
                 alt.Tooltip("value:Q", title="AI exposure", format=".2f"),
@@ -68,8 +77,11 @@ def build_map(
             ],
         )
         .add_params(hovered)
-        .project(type="transverseMercator", rotate=[-15, 0, 0])
-        .properties(width="container", height="container")
+        .project(type=MAP_STYLE.projection, rotate=list(MAP_STYLE.rotation))
+        .properties(width="container", height=MAP_STYLE.height)
         .configure_view(stroke=None)
-        .configure_legend(labelFontSize=14, titleFontSize=15)
+        .configure_legend(
+            labelFontSize=MAP_STYLE.legend_label_size,
+            titleFontSize=MAP_STYLE.legend_title_size,
+        )
     )

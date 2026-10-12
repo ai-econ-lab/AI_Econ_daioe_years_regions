@@ -30,7 +30,7 @@ graph LR
 | `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `ssyk12_aggregated_ssyk4_to_ssyk1.parquet`, published to the `pipeline-data-latest` release |
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet`, published to `pipeline-data-latest` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet`, published to `pipeline-data-latest` |
-| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` (the only generated file still committed here, since `app.py` reads it directly), also published to `pipeline-data-latest` |
+| `development` | Join geo coordinates onto the daioe/SCB dataset | `daioe-merge-geo` (`src/daioe_regions/pipeline/merge_geo.py`) | `data/daioe_scb_years_all_levels_geo.parquet` (the only generated file still committed here, since `app.py` reads it directly), also published to `pipeline-data-latest` |
 | `main` | Published dataset only | None | `data/daioe_scb_years_all_levels_geo.parquet`, and the same file published to the `dataset-latest` release, plus a dated `dataset-YYYY-MM-DD` release whenever its content changes |
 
 None of the four stages commit their output onto a branch's git tree
@@ -52,7 +52,7 @@ Workflows chain explicitly: `01` (weekly, Mondays 00:00 UTC) triggers `02`
 on completion. `02` and `03` each publish their intermediate to
 `pipeline-data-latest` and then trigger `04`, the only place
 `merge_geo.py` runs: it joins the latest of both intermediates, runs
-`scripts/validate.py`, and only then commits the tracked parquet and
+`daioe-validate` (`src/daioe_regions/pipeline/validate.py`), and only then commits the tracked parquet and
 publishes to `pipeline-data-latest` and `dataset-latest`. `04` also runs
 on a push to this branch. `03` has no schedule; it runs on a push to
 `geo_pull` or a manual dispatch. All four workflows live only on `main`,
@@ -162,7 +162,7 @@ needed.
    (quintiles) per metric.
 8. Left-join onto SCB's employment-change table and export.
 
-`development/scripts/merge_geo.py` then left-joins `county_lat`/`county_lon`
+`development`'s `daioe-merge-geo` then left-joins `county_lat`/`county_lon`
 from `county_coordinates.parquet` onto the result, producing
 `data/daioe_scb_years_all_levels_geo.parquet`, the file the Shiny app reads.
 
@@ -172,10 +172,15 @@ from `county_coordinates.parquet` onto the result, producing
 years 2014–2024, 21 counties, sex = men/women, `level` ∈
 {SSYK1, SSYK2, SSYK3, SSYK4}.
 
+The columns, dtypes, nullability and value ranges are defined in
+`src/daioe_regions/schema.py`, and `daioe-validate` rejects a dataset that
+differs from it, including any added or missing column. `daioe-schema` writes the
+same definition as `schema.json`, which `04` publishes on the dataset releases.
+
 | Column group | Columns | Notes |
 |---|---|---|
 | Identifiers | `level`, `ssyk_code`, `occupation`, `county_code`, `county`, `sex`, `year` | `ssyk_code` length matches `level` (1–4 digits) |
-| Employment | `emp_count`, `chg_1y`/`chg_3y`/`chg_5y`, `pct_chg_1y`/`pct_chg_3y`/`pct_chg_5y`, `weight_sum` | `weight_sum` is a national SSYK4 total, repeated per SSYK code, not county-specific |
+| Employment | `emp_count`, `chg_1y`/`chg_3y`/`chg_5y`, `pct_chg_1y`/`pct_chg_3y`/`pct_chg_5y`, `weight_sum` | `weight_sum` is a national SSYK4 total, repeated per SSYK code, not county-specific; `pct_chg_*` are percentages (-100 means all jobs lost), not fractions |
 | DAIOE (per domain, 11 domains) | `daioe_<domain>_avg`, `daioe_<domain>_wavg` | Simple mean vs. employment-weighted mean across the level's constituent SSYK4 codes |
 | DAIOE percentiles | `pctl_daioe_<domain>_avg`, `pctl_daioe_<domain>_wavg` | 0–100, within `year` × `level` |
 | DAIOE exposure buckets | `daioe_<domain>_Level_Exposure` | 1 (least exposed) – 5 (most exposed), quintiles of the weighted percentile |
@@ -199,7 +204,7 @@ null:
 - An `emp_count` of `0` is the value SCB reports, not a suppressed cell; the
   SCB pull contains no missing counts.
 
-`scripts/validate.py` checks these properties (no `NaN`/`inf`, unique keys,
+`daioe-validate` checks these properties (no `NaN`/`inf`, unique keys,
 21 counties, contiguous years, no null coordinates, percentiles and
 exposure levels in range) on the merged file in `04`, before anything is
 committed or published.
@@ -211,9 +216,23 @@ uv sync
 uv run shiny run app.py
 ```
 
+## Development
+
+```bash
+uv run pytest                          # tests
+uv run ruff check app.py src tests     # lint
+uv run ruff format app.py src tests    # format
+uv run ty check                        # types
+```
+
+`.github/workflows/tests.yml` runs the same four checks on every push and pull
+request to `development`. One test requires `development`'s copy of workflow `04`
+to equal `origin/main`'s, so edit `main` first. `data/sweden_counties.geojson` is rebuilt with
+`uv run --group boundaries python -m daioe_regions.pipeline.build_boundaries`.
+
 ## Licensing
 
-Code (`app.py`, `src/`, `scripts/`, `_brand.yml`) is MIT-licensed; see `LICENSE`. The
+Code (`app.py`, `src/`, `tests/`, `_brand.yml`) is MIT-licensed; see `LICENSE`. The
 published dataset under `data/` is CC BY 4.0-licensed; see `data/LICENSE`.
 This matches the licensing of `ai-econ-lab/daioe_translations` (MIT) and
 `ai-econ-lab/daioe_dataset` (CC BY 4.0).
@@ -221,14 +240,18 @@ This matches the licensing of `ai-econ-lab/daioe_translations` (MIT) and
 ## Repository layout on this branch
 
 ```
-app.py           Shiny Express UI and reactive wiring
-src/data.py      Data loading, constants and polars aggregations
-src/charts.py    Altair chart builders
-_brand.yml       App theming (AI-Econ Lab brand, shared with the org's other apps)
-logos/lab.svg    Lab logo used by _brand.yml
-LICENSE          MIT (code)
-data/            daioe_scb_years_all_levels_geo.parquet (promoted from development)
-data/LICENSE     CC BY 4.0 (data)
+app.py                        Shiny Express UI and reactive wiring
+src/daioe_regions/config.py   Constants as frozen dataclasses (paths, labels, map style, rules)
+src/daioe_regions/schema.py   Typed dataset schema (columns, dtypes, nullability, ranges)
+src/daioe_regions/data.py     Data loading and polars aggregations
+src/daioe_regions/charts.py   Altair chart builders
+src/daioe_regions/pipeline/   merge_geo, validate, export_schema and build_boundaries steps
+tests/                        pytest suite (synthetic fixtures plus the tracked dataset)
+_brand.yml                    App theming (AI-Econ Lab brand, shared with the org's other apps)
+logos/lab.svg                 Lab logo used by _brand.yml
+LICENSE                       MIT (code)
+data/                         daioe_scb_years_all_levels_geo.parquet (promoted from development)
+data/LICENSE                  CC BY 4.0 (data)
 pyproject.toml, uv.lock, .python-version
 ```
 

@@ -20,7 +20,7 @@ env:
   # workflows' comments). This is the single place the geodata merge runs:
   # 02 and 03 each publish their intermediate parquet and trigger this
   # workflow, which takes the latest of both from that release, joins them
-  # with scripts/merge_geo.py, validates the result, and only then keeps
+  # with daioe-merge-geo, validates the result, and only then keeps
   # `development`'s one tracked parquet (the file app.py reads at import
   # time, with no fallback) and main's copy in sync and re-publishes it under
   # a separate, stable `dataset-latest` release, which is what external
@@ -66,7 +66,7 @@ jobs:
       # to run; an unpinned newer polars serialises the same data to
       # different bytes, which would commit a new copy on every polars release.
       - name: Install dependencies
-        run: uv sync --frozen --project development
+        run: uv sync --frozen --no-dev --project development
 
       - name: Download the intermediates from the pipeline release
         env:
@@ -83,7 +83,13 @@ jobs:
         run: |
           set -euo pipefail
           cd development
-          uv run python scripts/merge_geo.py
+          # TEMPORARY fallback: development's tree may still be the pre-package
+          # layout with scripts/. Remove once a run has passed on the package.
+          if [ -f scripts/merge_geo.py ]; then
+            uv run --frozen --no-dev python scripts/merge_geo.py
+          else
+            uv run --frozen --no-dev daioe-merge-geo
+          fi
 
       - name: Download previous dataset release for comparison
         env:
@@ -105,8 +111,24 @@ jobs:
             previous_args=(--previous ../previous/daioe_scb_years_all_levels_geo.parquet)
           fi
           cd development
-          uv run python scripts/validate.py \
-            data/daioe_scb_years_all_levels_geo.parquet "${previous_args[@]}"
+          # TEMPORARY fallback, as in the merge step above.
+          if [ -f scripts/validate.py ]; then
+            uv run --frozen --no-dev python scripts/validate.py \
+              data/daioe_scb_years_all_levels_geo.parquet "${previous_args[@]}"
+          else
+            uv run --frozen --no-dev daioe-validate \
+              data/daioe_scb_years_all_levels_geo.parquet "${previous_args[@]}"
+          fi
+
+      # The schema the gate just enforced, published next to the parquet so
+      # consumers read the same definition. Skipped on the pre-package tree.
+      - name: Export the dataset schema
+        run: |
+          set -euo pipefail
+          cd development
+          if [ ! -f scripts/validate.py ]; then
+            uv run --frozen --no-dev daioe-schema
+          fi
 
       - name: Commit onto development if changed
         run: |
@@ -189,6 +211,10 @@ jobs:
           gh release upload "${DATASET_RELEASE_TAG}" \
             development/data/daioe_scb_years_all_levels_geo.parquet \
             --repo "${GITHUB_REPOSITORY}" --clobber
+          if [ -f development/data/schema.json ]; then
+            gh release upload "${DATASET_RELEASE_TAG}" development/data/schema.json \
+              --repo "${GITHUB_REPOSITORY}" --clobber
+          fi
 
       # dataset-latest is overwritten on every run, so it cannot be cited as a
       # fixed version. When the published bytes change (or no dated release
@@ -224,6 +250,10 @@ jobs:
               --notes "Snapshot of the published dataset, ${day}."
           gh release upload "${tag}" "${new_file}" \
             --repo "${GITHUB_REPOSITORY}" --clobber
+          if [ -f development/data/schema.json ]; then
+            gh release upload "${tag}" development/data/schema.json \
+              --repo "${GITHUB_REPOSITORY}" --clobber
+          fi
 
 
 

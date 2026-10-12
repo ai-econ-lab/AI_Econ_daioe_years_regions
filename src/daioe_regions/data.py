@@ -1,52 +1,44 @@
 """Data loading and polars aggregations behind the county app."""
 
 import json
+from functools import cache
 from pathlib import Path
+from typing import Any, cast
 
 import polars as pl
 import polars.selectors as cs
 
-APP_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = APP_DIR / "data" / "daioe_scb_years_all_levels_geo.parquet"
-BOUNDARIES_PATH = APP_DIR / "data" / "sweden_counties.geojson"
-
-DATA = pl.read_parquet(DATA_PATH)
-BOUNDARIES = json.loads(BOUNDARIES_PATH.read_text())
-YEARS = DATA.get_column("year").unique().sort()
-FIRST_YEAR, LATEST_YEAR = YEARS.min(), YEARS.max()
-
-SUBINDICES = {
-    "allapps": "📚 All applications",
-    "genai": "🧠 Generative AI",
-    "lngmod": "✍️ Language modelling",
-    "readcompr": "📖 Reading comprehension",
-    "translat": "🌐 Translation",
-    "speechrec": "🗣️ Speech recognition",
-    "imgrec": "🔎 Image recognition",
-    "imggen": "🖌️ Image generation",
-    "imgcompr": "🧩 Image comprehension",
-    "stratgames": "♟️ Strategy games",
-    "videogames": "🎮 Video games (real time)",
-}
-
-OCCUPATION_LEVELS = {
-    "SSYK1": "SSYK1 (10 groups)",
-    "SSYK2": "SSYK2 (46 groups)",
-    "SSYK3": "SSYK3 (148 groups)",
-    "SSYK4": "SSYK4 (429 groups)",
-}
+from daioe_regions.config import PATHS, TAXONOMY
 
 
-def occupation_choices(level: str) -> dict[str, str]:
+@cache
+def load_dataset(path: Path = PATHS.dataset) -> pl.DataFrame:
+    """Read the merged daioe/SCB/geo parquet once per path."""
+    return pl.read_parquet(path)
+
+
+@cache
+def load_boundaries(path: Path = PATHS.boundaries) -> dict[str, Any]:
+    """Read the county boundary GeoJSON once per path."""
+    return json.loads(path.read_text())
+
+
+def year_bounds(df: pl.DataFrame) -> tuple[int, int]:
+    """First and latest year present in the dataset."""
+    years = df.get_column("year")
+    return cast(int, years.min()), cast(int, years.max())
+
+
+def occupation_choices(df: pl.DataFrame, level: str) -> dict[str, str]:
     """Occupation group choices at one SSYK level, led by the all-occupations option."""
     groups = (
-        DATA.filter(pl.col("level") == level)
+        df.filter(pl.col("level") == level)
         .select("ssyk_code", "occupation")
         .unique()
         .sort("ssyk_code")
     )
     return {
-        "all": "All occupations",
+        TAXONOMY.all_key: TAXONOMY.all_label,
         **{
             row["ssyk_code"]: f"{row['ssyk_code']} {row['occupation']}"
             for row in groups.iter_rows(named=True)
@@ -54,20 +46,18 @@ def occupation_choices(level: str) -> dict[str, str]:
     }
 
 
-SEX_FILTERS = {"all": ["men", "women"], "men": ["men"], "women": ["women"]}
-
-
-def filter_rows(level: str, sex: str, group: str) -> pl.DataFrame:
+def filter_rows(df: pl.DataFrame, level: str, sex: str, group: str) -> pl.DataFrame:
     """Rows at one SSYK level for the chosen sex and occupation group prefix."""
-    frame = DATA.filter(
-        (pl.col("level") == level) & pl.col("sex").is_in(SEX_FILTERS[sex]),
+    frame = df.filter(
+        (pl.col("level") == level) & pl.col("sex").is_in(TAXONOMY.sex_filters[sex]),
     )
-    if group != "all":
+    if group != TAXONOMY.all_key:
         frame = frame.filter(pl.col("ssyk_code").str.starts_with(group))
     return frame
 
 
 def aggregate(
+    df: pl.DataFrame,
     level: str,
     by: list[str],
     sex: str,
@@ -91,7 +81,7 @@ def aggregate(
         return summed / (pl.col("emp_count").filter(valid).sum() - summed)
 
     return (
-        filter_rows(level, sex, group)
+        filter_rows(df, level, sex, group)
         .group_by([*by, "year"])
         .agg(
             pl.col("emp_count").sum().alias("employment"),

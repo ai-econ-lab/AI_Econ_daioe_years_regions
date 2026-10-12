@@ -1,28 +1,21 @@
-"""
-build_county_boundaries.py.
----------------------------
-One-off build of data/sweden_counties.geojson: simplified boundaries for
-Sweden's 21 counties (lan), keyed by SCB county_code, for the Altair map in
-app.py.
+"""One-off build of data/sweden_counties.geojson for the Altair map.
 
-Boundaries don't change, so this is not part of the pipeline. Run it with
-geopandas supplied ad hoc so it stays out of the app's dependencies:
+Simplified boundaries for Sweden's 21 counties (lan), keyed by SCB county_code.
 
-    uv run --with geopandas scripts/build_county_boundaries.py
+Boundaries don't change, so this is not part of the pipeline. geopandas lives in
+its own dependency group so it stays out of the app's dependencies:
+
+    uv run --group boundaries python -m daioe_regions.pipeline.build_boundaries
 
 Source: Natural Earth 10m admin-1 (public domain).
 """
 
 import argparse
-from pathlib import Path
 
-import geopandas as gpd
+import geopandas as gpd  # ty: ignore[unresolved-import]
 import polars as pl
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
-GEO_PATH = DATA_DIR / "daioe_scb_years_all_levels_geo.parquet"
-OUTPUT_PATH = DATA_DIR / "sweden_counties.geojson"
+from daioe_regions.config import PATHS
 
 NATURAL_EARTH_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/"
@@ -57,7 +50,7 @@ ISO_TO_SCB = {
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("--source", default=NATURAL_EARTH_URL)
     parser.add_argument(
         "--tolerance",
@@ -81,7 +74,7 @@ def main() -> None:
         raise ValueError(msg)
 
     data_codes = set(
-        pl.read_parquet(GEO_PATH, columns=["county_code"])
+        pl.read_parquet(PATHS.dataset, columns=["county_code"])
         .get_column("county_code")
         .unique(),
     )
@@ -94,8 +87,8 @@ def main() -> None:
         args.tolerance,
         preserve_topology=True,
     )
-    sweden.to_file(OUTPUT_PATH, driver="GeoJSON", COORDINATE_PRECISION=3)
-    print(f"Wrote {OUTPUT_PATH} ({OUTPUT_PATH.stat().st_size / 1024:.0f} KB)")
+    sweden.to_file(PATHS.boundaries, driver="GeoJSON", COORDINATE_PRECISION=3)
+    print(f"Wrote {PATHS.boundaries} ({PATHS.boundaries.stat().st_size / 1024:.0f} KB)")
 
 
 if __name__ == "__main__":
