@@ -25,7 +25,7 @@ graph LR
 | `scb_pull` | Pull raw SCB employment tables | `scripts/pull_merge.py`, `scripts/aggregate.py` | `ssyk12_aggregated_ssyk4_to_ssyk1.parquet` |
 | `daioe_pull` | Merge DAIOE exposure scores with SCB employment | `main.py` | `daioe_scb_years_all_levels.parquet` |
 | `geo_pull` | Maintain county reference coordinates | `main.py` | `county_coordinates.parquet` |
-| `development` | Join geo coordinates onto the daioe/SCB dataset | `scripts/merge_geo.py` | `data/daioe_scb_years_all_levels_geo.parquet` |
+| `development` | Join geo coordinates onto the daioe/SCB dataset | `daioe-merge-geo` | `data/daioe_scb_years_all_levels_geo.parquet` |
 | `main` | Published dataset only | None | Same file, promoted from `development` |
 
 **Data hand-off:** every stage publishes to the `pipeline-data-latest`
@@ -61,6 +61,12 @@ The published dataset is available as a GitHub release asset:
 ```bash
 gh release download dataset-latest --repo <owner>/<repo> \
   -p 'daioe_scb_years_all_levels_geo.parquet'
+```
+
+The column definitions are published next to it as `schema.json`:
+
+```bash
+gh release download dataset-latest --repo <owner>/<repo> -p 'schema.json'
 ```
 
 `dataset-latest` is overwritten on every run, so it is not a fixed
@@ -176,7 +182,7 @@ administrative-capital city centre, **not** a computed area centroid.
    (quintiles).
 8. Left-join onto SCB's employment-change table and export.
 
-`development/scripts/merge_geo.py` then left-joins `county_lat` and
+`development`'s `daioe-merge-geo` then left-joins `county_lat` and
 `county_lon` from `county_coordinates.parquet` onto the result,
 producing `data/daioe_scb_years_all_levels_geo.parquet`, the file the
 Shiny app reads.
@@ -186,6 +192,10 @@ Shiny app reads.
 `data/daioe_scb_years_all_levels_geo.parquet`: 292,446 rows × 72
 columns, years 2014–2024, 21 counties, sex = men/women, `level` ∈
 {SSYK1, SSYK2, SSYK3, SSYK4}.
+
+`schema.json` on the `dataset-latest` release is the authoritative
+definition of the columns, dtypes, nullability and value ranges; the
+pipeline rejects a dataset that differs from it. The table summarises it.
 
 | Column group | Columns | Notes |
 |---|---|---|
