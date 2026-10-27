@@ -204,11 +204,14 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" --clobber
 
       # dataset-latest is overwritten on every run, so it cannot be cited as a
-      # fixed version. When the published bytes change (or no dated release
-      # exists yet), also keep them under dataset-YYYY-MM-DD. The tag points at
-      # main's newest commit, which by now carries this same parquet. The bytes
-      # only change with the data because the merge runs in the locked
-      # environment. A second change on the same day updates that day's release.
+      # fixed version. When the published data change (or no dated release
+      # exists yet), also keep them under dataset-YYYY-MM-DD. The data are
+      # compared rather than the file hashes: even in the locked environment,
+      # group averages are summed in a non-deterministic order, so a rerun can
+      # change the last bit of a float (about 1e-16 relative) and with it the
+      # parquet bytes. The 1e-12 tolerance ignores that noise and nothing else.
+      # The tag points at main's newest commit, which by now carries this same
+      # parquet. A second change on the same day updates that day's release.
       - name: Snapshot a dated release when the dataset changes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -216,14 +219,26 @@ jobs:
           set -euo pipefail
           new_file=development/data/daioe_scb_years_all_levels_geo.parquet
           old_file=previous/daioe_scb_years_all_levels_geo.parquet
-          new_sha=$(sha256sum "${new_file}" | cut -d' ' -f1)
-          old_sha=""
-          if [ -f "${old_file}" ]; then
-            old_sha=$(sha256sum "${old_file}" | cut -d' ' -f1)
+          unchanged=false
+          if [ -f "${old_file}" ] && uv run --frozen --no-dev --project development python -c '
+          import sys
+          import polars as pl
+          from polars.testing import assert_frame_equal
+          try:
+              assert_frame_equal(
+                  pl.read_parquet(sys.argv[1]),
+                  pl.read_parquet(sys.argv[2]),
+                  rel_tol=1e-12,
+                  abs_tol=1e-12,
+              )
+          except AssertionError as error:
+              sys.exit(f"Dataset changed: {error}")
+          ' "${new_file}" "${old_file}"; then
+            unchanged=true
           fi
           dated_count=$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 200 \
             --json tagName -q '[.[] | select(.tagName | startswith("dataset-2"))] | length')
-          if [ "${new_sha}" = "${old_sha}" ] && [ "${dated_count}" != "0" ]; then
+          if [ "${unchanged}" = "true" ] && [ "${dated_count}" != "0" ]; then
             echo "Dataset unchanged and a dated release already exists; no snapshot."
             exit 0
           fi
